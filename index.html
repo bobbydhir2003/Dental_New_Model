@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="https://res.cloudinary.com/unmc/image/upload/v1618870187/iEXCEL_Favicon_vdbleh.ico">
+  <title>Dentistry | iEXCEL</title>
+  <meta name="description" content="Dental anatomy 3D models created by iEXCEL at the University of Nebraska Medical Center.">
+  <meta name="keywords" content="UNMC iEXCEL dental anatomy 3D">
+  <meta name="author" content="iEXCEL">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
+  <link rel="stylesheet" href="./main.css">
+  <!-- Mobile-only layer; every rule is inside @media (max-width: 600px) so
+       desktop and tablet layouts are completely unaffected. -->
+  <link rel="stylesheet" href="./mobile.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="app-header">
+      <a class="brand" href="index.html" aria-label="Dental anatomy home">
+        <img src="https://res.cloudinary.com/unmc/image/upload/v1642625051/logo/New_Project_6_avrb9d.svg" alt="UNMC iEXCEL logo">
+        <h1>Dental anatomy</h1>
+      </a>
+
+      <div class="search-shell">
+        <div class="search-field">
+          <input type="text" id="searchBox" placeholder="Type here to search" autocomplete="off">
+          <button id="searchBtn" type="button" aria-label="Search">
+            <span>Search</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Mobile-only hamburger (hidden on tablet/desktop via mobile.css). Opens
+           the drawer that holds the secondary panels on small screens. -->
+      <button id="mobileMenuBtn" class="mobile-menu-btn" type="button" aria-label="Open menu" aria-controls="mobileDrawer" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+    </header>
+
+    <div id="searchResultsDiv">
+      <ul class="results-list" id="resultsList"></ul>
+    </div>
+
+    <main class="app-main">
+      <aside class="left-column">
+        <section class="panel info-panel">
+          <div class="panel-header">
+            <h2>Information</h2>
+          </div>
+
+          <div class="tooth-meta" id="teeth-info-title">Selected Tooth</div>
+
+          <div class="info-scroll">
+            <div id="info">None</div>
+            <div class="compare-grid">
+              <div id="compareLeft"></div>
+              <div id="compareRight"></div>
+            </div>
+          </div>
+
+          <div class="info-actions">
+            <div class="compare-action">
+              <input type="checkbox" id="compareCheckbox" class="pill-input">
+              <label for="compareCheckbox" class="pill-button compare-pill">Compare</label>
+            </div>
+            <button id="isolateButton" type="button" class="pill-button light-pill">Isolate</button>
+          </div>
+        </section>
+
+        <section class="panel xray-panel">
+          <div class="panel-header">
+            <h2>Xray</h2>
+            <button id="xrayButton" type="button" class="icon-link-button" data-bs-toggle="modal" data-bs-target="#exampleModalCenter" aria-label="Expand x-ray">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M8 3H5a2 2 0 0 0-2 2v3"></path>
+                <path d="M16 3h3a2 2 0 0 1 2 2v3"></path>
+                <path d="M8 21H5a2 2 0 0 1-2-2v-3"></path>
+                <path d="M16 21h3a2 2 0 0 0 2-2v-3"></path>
+              </svg>
+            </button>
+          </div>
+
+          <div class="xray-frame">
+            <img id="xrayImage" src="./three/examples/textures/xrays/xray-0.png" alt="Selected tooth x-ray">
+          </div>
+        </section>
+      </aside>
+
+      <section class="center-column">
+        <div class="scene-area">
+          <div class="message-layer">
+            <div class="message-box" id="sceneMessage">
+              <span>Click on a tooth to view more information on the tooth.</span>
+              <button type="button" class="message-close" id="sceneMessageClose" aria-label="Close message">×</button>
+            </div>
+          </div>
+
+          <!-- Help modal overlay (full-screen, above everything) -->
+          <div class="help-modal-overlay" id="helpModalOverlay" style="display: none;">
+            <div class="help-modal">
+              <div class="help-modal-header">
+                <h2>3D Navigation Instructions</h2>
+                <button type="button" class="help-close" id="helpModalClose" aria-label="Close help">&times;</button>
+              </div>
+              <div class="help-content">
+                <div class="help-item">
+                  <img src="Dentistry app 3/Component 1.png" alt="Rotate: Click or touch and drag to rotate models" class="help-item-img">
+                </div>
+                <div class="help-item">
+                  <img src="Dentistry app 3/Component 2.png" alt="Zoom: Scroll or pinch to zoom in and out" class="help-item-img">
+                </div>
+                <div class="help-item">
+                  <img src="Dentistry app 3/Component 3.png" alt="Pan: Right click or two fingers to drag" class="help-item-img">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div id="loadingDiv" class="lds-spinner" aria-label="Loading">
+            <div></div><div></div><div></div><div></div><div></div><div></div>
+            <div></div><div></div><div></div><div></div><div></div><div></div>
+          </div>
+
+          <div id="hud"></div>
+          <canvas id="threejs-canvas"></canvas>
+
+          <!-- Compare mode: two fully independent 3D viewers, one tooth each.
+               Hidden until two teeth are selected; shown above the main canvas
+               but below the message banner and right-side controls. -->
+          <div id="compareView" class="compare-view" aria-label="Compare two teeth" hidden>
+            <div class="compare-canvas-panel">
+              <h3 class="compare-title" id="compareTitleLeft">Tooth 1</h3>
+              <div class="compare-canvas-wrap">
+                <canvas class="compare-canvas" id="compareCanvasLeft"></canvas>
+              </div>
+            </div>
+            <div class="compare-divider" aria-hidden="true"></div>
+            <div class="compare-canvas-panel">
+              <h3 class="compare-title" id="compareTitleRight">Tooth 2</h3>
+              <div class="compare-canvas-wrap">
+                <canvas class="compare-canvas" id="compareCanvasRight"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <div class="scene-overlay-stack" aria-label="Scene controls">
+            <div class="overlay-icon-row">
+              <button type="button" class="overlay-icon-btn" id="btnHelp" aria-label="Open controls help">
+                <img src="Dentistry app 3/Info.png" alt="Help" class="overlay-icon-img">
+              </button>
+              <button type="button" class="overlay-icon-btn" id="btnReset" aria-label="Reset 3D view">
+                <img src="Dentistry app 3/Refresh.png" alt="Reset" class="overlay-icon-img">
+              </button>
+            </div>
+            <aside class="floating-controls">
+              <section class="panel control-panel visibility-panel">
+                <div class="panel-header compact">
+                  <h2>Visibility</h2>
+                </div>
+
+                <div class="toggle-list">
+                  <div class="toggle-row">
+                    <span>Upper Jaw</span>
+                    <div class="toggle-control">
+                      <input type="checkbox" id="upperJawCheckbox" class="toggle-input" checked>
+                      <label for="upperJawCheckbox" class="toggle-switch" aria-label="Toggle upper jaw"></label>
+                    </div>
+                  </div>
+
+                  <div class="toggle-row">
+                    <span>Lower Jaw</span>
+                    <div class="toggle-control">
+                      <input type="checkbox" id="lowerJawCheckbox" class="toggle-input" checked>
+                      <label for="lowerJawCheckbox" class="toggle-switch" aria-label="Toggle lower jaw"></label>
+                    </div>
+                  </div>
+
+                  <div class="toggle-row">
+                    <span>Gums</span>
+                    <div class="toggle-control">
+                      <input type="checkbox" id="gumsCheckbox" class="toggle-input" checked>
+                      <label for="gumsCheckbox" class="toggle-switch" aria-label="Toggle gums"></label>
+                    </div>
+                  </div>
+
+                  <div class="toggle-row">
+                    <span>Bones</span>
+                    <div class="toggle-control">
+                      <input type="checkbox" id="bonesCheckbox" class="toggle-input" checked>
+                      <label for="bonesCheckbox" class="toggle-switch" aria-label="Toggle bones"></label>
+                    </div>
+                  </div>
+
+                  <div class="toggle-row">
+                    <span>Nerves</span>
+                    <div class="toggle-control">
+                      <input type="checkbox" id="nervesCheckbox" class="toggle-input">
+                      <label for="nervesCheckbox" class="toggle-switch" aria-label="Toggle nerves"></label>
+                    </div>
+                  </div>
+
+                  <div class="toggle-row">
+                    <span>Teeth</span>
+                    <div class="toggle-control">
+                      <input type="checkbox" id="teethCheckbox" class="toggle-input" checked>
+                      <label for="teethCheckbox" class="toggle-switch" aria-label="Toggle teeth"></label>
+                    </div>
+                  </div>
+
+                  <div class="check-list">
+                    <div class="mini-check ui-only-check">
+                      <input type="checkbox" id="uiDentin" checked>
+                      <label for="uiDentin">Dentin</label>
+                    </div>
+                    <div class="mini-check ui-only-check">
+                      <input type="checkbox" id="uiPulp" checked>
+                      <label for="uiPulp">Pulp</label>
+                    </div>
+                    <div class="mini-check ui-only-check">
+                      <input type="checkbox" id="uiEnamel" checked>
+                      <label for="uiEnamel">Enamel</label>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <section class="panel control-panel occlusion-panel">
+                <div class="panel-header compact">
+                  <h2>Occlusion</h2>
+                </div>
+
+                <div class="toggle-list">
+                  <div class="toggle-row">
+                    <span>Curve of Spee</span>
+                    <div class="toggle-control">
+                      <input type="checkbox" id="speeCheckbox" class="toggle-input">
+                      <label for="speeCheckbox" class="toggle-switch" aria-label="Toggle curve of Spee"></label>
+                    </div>
+                  </div>
+
+                  <div class="toggle-row">
+                    <span>Curve of Wilson</span>
+                    <div class="toggle-control">
+                      <input type="checkbox" id="wilsonCheckbox" class="toggle-input">
+                      <label for="wilsonCheckbox" class="toggle-switch" aria-label="Toggle curve of Wilson"></label>
+                    </div>
+                  </div>
+
+                  <div class="toggle-row">
+                    <span>Sphere of Monson</span>
+                    <div class="toggle-control">
+                      <input type="checkbox" id="monsonCheckbox" class="toggle-input">
+                      <label for="monsonCheckbox" class="toggle-switch" aria-label="Toggle sphere of Monson"></label>
+                    </div>
+                  </div>
+
+                  <div class="toggle-row">
+                    <span>Occlusal view</span>
+                    <div class="toggle-control">
+                      <input type="checkbox" id="occlusalCheckbox" class="toggle-input">
+                      <label for="occlusalCheckbox" class="toggle-switch" aria-label="Toggle occlusal view"></label>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <section class="panel control-panel jaw-panel">
+                <div class="panel-header compact">
+                  <h2>Jaw position</h2>
+                </div>
+
+                <div class="jaw-toggle-row">
+                  <span>closed</span>
+                  <div class="toggle-control">
+                    <input type="checkbox" id="jawOpenCheckbox" class="toggle-input">
+                    <label for="jawOpenCheckbox" class="toggle-switch" aria-label="Toggle jaw open"></label>
+                  </div>
+                  <span>open</span>
+                </div>
+              </section>
+            </aside>
+
+            <section class="odontogram-card floating-odontogram" id="odontogramCard" aria-label="Odontogram and numbering system">
+              <!-- Tablet bottom-drawer chrome (hidden on desktop/mobile via CSS):
+                   a grab handle + close button shown only when the odontogram is
+                   presented as a slide-up bottom sheet. -->
+              <span class="odo-drawer-handle" aria-hidden="true"></span>
+              <button id="odoDrawerClose" class="odo-drawer-close" type="button" aria-label="Hide odontogram">&times;</button>
+
+              <!-- Compare mode: confirm the two selected teeth to open the split
+                   view. Shown only while choosing the pair; JS toggles `hidden`. -->
+              <button id="compareConfirmBtn" class="odo-confirm-btn" type="button" hidden disabled>Confirm selection</button>
+
+              <div class="odo-figure">
+                <div class="odo-stage" id="odoStage">
+                  <img class="odo-base" id="odoBaseImg"
+                       src="./three/examples/textures/odontogram_universal.png"
+                       alt="Dental odontogram. Click a tooth to select it.">
+                  <!-- Clickable hotspots and cyan highlight overlays are injected here by JS -->
+                  <div class="odo-layer" id="odoLayer"></div>
+                </div>
+              </div>
+
+              <div class="odo-systems">
+                <div class="odo-systems-title">Numbering system</div>
+
+                <label class="odo-radio">
+                  <input type="radio" name="numSystem" id="universal" checked>
+                  <span class="odo-dot"></span>
+                  <span class="odo-label">Universal</span>
+                </label>
+
+                <label class="odo-radio">
+                  <input type="radio" name="numSystem" id="palmer">
+                  <span class="odo-dot"></span>
+                  <span class="odo-label">Palmer</span>
+                </label>
+
+                <label class="odo-radio">
+                  <input type="radio" name="numSystem" id="fdi">
+                  <span class="odo-dot"></span>
+                  <span class="odo-label">FDI</span>
+                </label>
+
+                <label class="odo-radio">
+                  <input type="radio" name="numSystem" id="hideNum">
+                  <span class="odo-dot"></span>
+                  <span class="odo-label">none</span>
+                </label>
+              </div>
+
+              <!-- Hidden compatibility radio kept so existing JS bindings stay valid -->
+              <input type="radio" id="showNum" name="numSystemCompat" class="odo-compat-hidden">
+            </section>
+          </div>
+
+          <!-- Tablet-only tab to open the odontogram bottom sheet. Hidden on
+               desktop and mobile via CSS; the JS toggles `odo-drawer-open` on
+               <body>. -->
+          <button id="odoDrawerTab" class="odo-drawer-tab" type="button" aria-label="Show odontogram" aria-expanded="false" aria-controls="odontogramCard">
+            <span>Odontogram</span>
+            <span class="odo-drawer-tab-caret" aria-hidden="true">▲</span>
+          </button>
+        </div>
+      </section>
+    </main>
+
+    <footer class="app-footer">
+      <p>© 2026, Board of Regents of the University of Nebraska. All rights reserved. <a href="#" id="creditsLink">Credits</a></p>
+    </footer>
+
+    <!-- Mobile drawer (hidden on tablet/desktop). mobile.js relocates the
+         secondary panels into the body of this drawer on small screens and
+         moves them back when the viewport grows. -->
+    <div id="mobileDrawerScrim" class="mobile-drawer-scrim" hidden></div>
+    <aside id="mobileDrawer" class="mobile-drawer" aria-hidden="true" aria-label="More controls">
+      <div class="mobile-drawer-head">
+        <span class="mobile-drawer-title">Controls</span>
+        <button id="mobileDrawerClose" class="mobile-drawer-close" type="button" aria-label="Close menu">&times;</button>
+      </div>
+      <div class="mobile-drawer-body" id="mobileDrawerBody"></div>
+    </aside>
+  </div>
+
+  <div class="credits-modal-overlay" id="creditsModalOverlay" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="creditsModalTitle">
+    <div class="credits-modal">
+      <button type="button" class="credits-close" id="creditsModalClose" aria-label="Close credits">&times;</button>
+      <h2 id="creditsModalTitle">iEXCEL Visualization</h2>
+      <div class="credits-list">
+        <div class="credits-item">
+          <p class="credits-name">Jer Weann Ang, MS</p>
+          <p class="credits-role">Medical Illustrator, UI Designer</p>
+        </div>
+        <div class="credits-item">
+          <p class="credits-name">Dheeraj Varandani, MS</p>
+          <p class="credits-role">Visualization Technical Lead</p>
+        </div>
+        <div class="credits-item">
+          <p class="credits-name">Bill Glass, MS</p>
+          <p class="credits-role">Artistic Director, iEXCEL Visualization</p>
+        </div>
+        <div class="credits-item">
+          <p class="credits-name">Anthony Lanza</p>
+          <p class="credits-role">3D Generalist</p>
+        </div>
+        <div class="credits-item">
+          <p class="credits-name">Bobby Dhir</p>
+          <p class="credits-role">Intern</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="exampleModalCenter" tabindex="-1" aria-labelledby="exampleModalCenterTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content dental-modal">
+        <div class="modal-header">
+          <h5 class="modal-title" id="exampleModalCenterTitle">Xray</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <img id="xrayModalImage" src="./three/examples/textures/xrays/xray-0.png" alt="Expanded x-ray preview">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script async src="https://unpkg.com/es-module-shims@1.3.6/dist/es-module-shims.js"></script>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "./three/build/three.module.js"
+      }
+    }
+  </script>
+  <script type="module" src="./dentistry_js.js"></script>
+  <!-- Mobile drawer behaviour + panel relocation. Pure layout helper; only
+       acts at <=600px and is fully reversible on larger screens. -->
+  <script src="./mobile.js" defer></script>
+  <script type="text/javascript" src="https://cdn.jsdelivr.net/gh/shaderbytes/Sketchfab-Viewer-API-Utility@v3.0.0.2/SketchfabAPIUtility.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
+  <script>
+    const sceneMessageClose = document.getElementById('sceneMessageClose');
+    const sceneMessage = document.getElementById('sceneMessage');
+    const xrayImage = document.getElementById('xrayImage');
+    const xrayModalImage = document.getElementById('xrayModalImage');
+    const xrayModal = document.getElementById('exampleModalCenter');
+
+    if (sceneMessageClose && sceneMessage) {
+      sceneMessageClose.addEventListener('click', function () {
+        sceneMessage.style.display = 'none';
+      });
+    }
+
+    if (xrayModal && xrayImage && xrayModalImage) {
+      xrayModal.addEventListener('show.bs.modal', function () {
+        xrayModalImage.src = xrayImage.src;
+      });
+    }
+
+    // Credits modal: opens from the footer "Credits" link, closes via the X
+    // button, clicking outside the card, or pressing Escape. Never navigates
+    // away from the app page.
+    const creditsLink = document.getElementById('creditsLink');
+    const creditsModalOverlay = document.getElementById('creditsModalOverlay');
+    const creditsModalClose = document.getElementById('creditsModalClose');
+
+    if (creditsLink && creditsModalOverlay) {
+      creditsLink.addEventListener('click', function (e) {
+        e.preventDefault();
+        creditsModalOverlay.style.display = 'flex';
+      });
+
+      if (creditsModalClose) {
+        creditsModalClose.addEventListener('click', function () {
+          creditsModalOverlay.style.display = 'none';
+        });
+      }
+
+      creditsModalOverlay.addEventListener('click', function (e) {
+        if (e.target === creditsModalOverlay) {
+          creditsModalOverlay.style.display = 'none';
+        }
+      });
+
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && creditsModalOverlay.style.display === 'flex') {
+          creditsModalOverlay.style.display = 'none';
+        }
+      });
+    }
+
+    // ------------------------------------------------------------------
+    // Odontogram bottom-sheet drawer (tablet only — CSS gates the visuals,
+    // so toggling the class on desktop/mobile is a harmless no-op). This is
+    // a pure presentation toggle: it never touches selection, compare,
+    // isolate, numbering, or any odontogram logic — those bindings live on
+    // the same elements and keep working whether the sheet is open or shut.
+    // ------------------------------------------------------------------
+    (function () {
+      var DRAWER_CLASS = 'odo-drawer-open';
+      var tab = document.getElementById('odoDrawerTab');
+      var closeBtn = document.getElementById('odoDrawerClose');
+      var card = document.getElementById('odontogramCard');
+      var caret = tab ? tab.querySelector('.odo-drawer-tab-caret') : null;
+
+      function isOpen() { return document.body.classList.contains(DRAWER_CLASS); }
+      function setOpen(open) {
+        document.body.classList.toggle(DRAWER_CLASS, open);
+        if (tab) tab.setAttribute('aria-expanded', open ? 'true' : 'false');
+        // Flip the tab caret: down (▼) when open, up (▲) when closed.
+        if (caret) caret.textContent = open ? '▼' : '▲';
+      }
+      function openDrawer() { setOpen(true); }
+      function closeDrawer() { setOpen(false); }
+      function toggleDrawer() { setOpen(!isOpen()); }
+
+      if (tab) tab.addEventListener('click', toggleDrawer);
+      if (closeBtn) closeBtn.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        closeDrawer();
+      });
+
+      // Esc closes the sheet.
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && isOpen()) closeDrawer();
+      });
+
+      // Swipe-down to close — only armed when the gesture STARTS in the top
+      // handle zone of the sheet, so dragging/tapping teeth never closes it.
+      if (card) {
+        var startY = null;
+        card.addEventListener('touchstart', function (e) {
+          var rect = card.getBoundingClientRect();
+          var y = e.touches[0].clientY;
+          startY = (y - rect.top) < 52 ? y : null;
+        }, { passive: true });
+        card.addEventListener('touchmove', function (e) {
+          if (startY === null) return;
+          if ((e.touches[0].clientY - startY) > 55) { closeDrawer(); startY = null; }
+        }, { passive: true });
+        card.addEventListener('touchend', function () { startY = null; });
+      }
+    })();
+  </script>
+</body>
+</html>

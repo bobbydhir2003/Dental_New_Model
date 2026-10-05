@@ -1,0 +1,407 @@
+/* =====================================================================
+   mobile.css — Mobile layout for the dental anatomy app.
+
+   EVERY rule in this file lives inside @media (max-width: 600px), so the
+   desktop and tablet layouts (anything wider than 600px) are completely
+   untouched. mobile.js relocates the secondary panels into the drawer and
+   the Compare/Isolate actions onto the canvas; the rules below style that
+   mobile arrangement.
+   ===================================================================== */
+
+@media (max-width: 600px) {
+
+  :root {
+    /* Single source of truth for the canvas (and overlay) height. */
+    --m-canvas-h: 56vh;
+  }
+
+  /* ---------------------------------------------------------------
+     HEADER — compact branding + hamburger; inline search hidden
+     (it is relocated into the drawer by mobile.js).
+     --------------------------------------------------------------- */
+  .app-header {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    min-height: 54px;
+    padding: 9px 12px;
+  }
+
+  .brand {
+    gap: 9px;
+    flex-wrap: nowrap;
+    min-width: 0;
+  }
+
+  .brand img {
+    width: 54px;
+  }
+
+  .brand h1 {
+    font-size: 1.15rem;
+    white-space: nowrap;
+  }
+
+  /* Search lives in the drawer on mobile; hide any header instance. */
+  .app-header .search-shell {
+    display: none;
+  }
+
+  .mobile-menu-btn {
+    display: inline-flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 5px;
+    width: 42px;
+    height: 42px;
+    padding: 0 9px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: linear-gradient(180deg, rgba(50, 50, 50, 0.5), rgba(24, 24, 24, 0.4));
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .mobile-menu-btn span {
+    display: block;
+    width: 100%;
+    height: 2px;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.9);
+  }
+
+  /* ---------------------------------------------------------------
+     MAIN GRID — single column, 3D scene is the hero. The left column
+     is emptied (its panels move to the drawer) so it is hidden.
+     --------------------------------------------------------------- */
+  .app-main {
+    grid-template-columns: 1fr;
+    gap: 0;
+    padding: 10px 10px 18px;
+    min-height: auto;
+  }
+
+  .left-column {
+    display: none;
+  }
+
+  .center-column {
+    order: 0;
+    min-height: 0;
+  }
+
+  /* ---------------------------------------------------------------
+     SCENE — canvas fills the stage; controls float over it; the
+     odontogram (moved out of the overlay stack by mobile.js) flows
+     below the canvas.
+     --------------------------------------------------------------- */
+  .scene-area {
+    display: block;
+    height: auto;
+    min-height: 0;
+    border-radius: 22px;
+    padding: 6px;
+    overflow: visible;
+  }
+
+  #threejs-canvas {
+    height: var(--m-canvas-h);
+    min-height: var(--m-canvas-h);
+    border-radius: 18px;
+  }
+
+  /* Hide the instructional banner for a clean mobile view. */
+  .message-layer {
+    display: none;
+  }
+
+  /* Overlay stack covers ONLY the canvas region (not the odontogram). */
+  .scene-overlay-stack {
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    right: 6px;
+    bottom: auto;
+    height: var(--m-canvas-h);
+    width: auto;
+    display: block;
+    margin: 0;
+    gap: 0;
+    pointer-events: none;
+    z-index: 8;
+  }
+
+  .scene-overlay-stack > * {
+    pointer-events: auto;
+  }
+
+  /* --- Help / Reset: pinned across the top of the canvas --- */
+  .overlay-icon-row {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    right: 8px;
+    justify-content: space-between;
+    gap: 0;
+  }
+
+  .overlay-icon-btn {
+    position: relative;
+    width: 42px;
+    height: 42px;
+  }
+
+  /* Small text labels under the round icons (mobile only). */
+  #btnHelp::after,
+  #btnReset::after {
+    position: absolute;
+    top: calc(100% + 3px);
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.62rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: rgba(255, 255, 255, 0.82);
+    pointer-events: none;
+  }
+
+  #btnHelp::after { content: "Help"; }
+  #btnReset::after { content: "Reset"; }
+
+  /* --- Visibility: compact card, bottom-right of the canvas --- */
+  .floating-controls {
+    position: absolute;
+    right: 8px;
+    bottom: 8px;
+    left: auto;
+    top: auto;
+    display: block;
+    width: auto;
+    gap: 0;
+    align-items: stretch;
+  }
+
+  .floating-controls .control-panel {
+    width: min(150px, 44vw);
+    align-self: auto;
+  }
+
+  /* Occlusion + Jaw panels are relocated to the drawer; never show them
+     in the floating stack. Inside the drawer they display normally. */
+  .floating-controls .occlusion-panel,
+  .floating-controls .jaw-panel {
+    display: none;
+  }
+
+  /* Decorative sub-options are dropped from the compact card. */
+  .floating-controls .check-list {
+    display: none;
+  }
+
+  .floating-controls .toggle-list {
+    padding: 6px 10px 8px;
+  }
+
+  .floating-controls .toggle-row {
+    min-height: 20px;
+  }
+
+  .floating-controls .panel-header.compact {
+    padding-top: 10px;
+  }
+
+  .floating-controls .panel-header h2 {
+    font-size: 0.92rem;
+  }
+
+  .floating-controls .toggle-row span {
+    font-size: 0.8rem;
+  }
+
+  /* --- Compare / Isolate dock: bottom-left of the canvas --- */
+  .mobile-action-dock {
+    position: absolute;
+    left: 8px;
+    bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: auto;
+    max-width: 52vw;
+    pointer-events: auto;
+  }
+
+  .mobile-action-dock .info-actions {
+    display: flex;
+    gap: 8px;
+    padding: 0;
+    margin: 0;
+    grid-template-columns: none;
+  }
+
+  .mobile-action-dock .compare-action {
+    min-width: 0;
+  }
+
+  .mobile-action-dock .pill-button,
+  .mobile-action-dock .compare-pill,
+  .mobile-action-dock .light-pill {
+    width: auto;
+    min-height: 36px;
+    padding: 0 14px;
+    font-size: 0.8rem;
+  }
+
+  /* ---------------------------------------------------------------
+     ODONTOGRAM — full-width card below the canvas. Uses the id so it
+     reliably overrides the desktop/tablet floating-odontogram rules.
+     --------------------------------------------------------------- */
+  #odontogramCard {
+    position: relative;
+    width: 100%;
+    max-width: 100%;
+    margin: 12px 0 0;
+    align-self: stretch;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    z-index: 1;
+  }
+
+  #odontogramCard .odo-figure {
+    flex: 1 1 auto;
+    width: 100%;
+  }
+
+  /* Numbering-system selector laid out horizontally under the chart so
+     the chart stays large and the options remain usable. */
+  #odontogramCard .odo-systems {
+    flex: none;
+    display: flex;
+    flex-flow: row wrap;
+    align-items: center;
+    gap: 6px 14px;
+  }
+
+  #odontogramCard .odo-systems-title {
+    width: 100%;
+    margin: 0 0 2px;
+    font-size: 0.82rem;
+  }
+
+  #odontogramCard .odo-radio {
+    font-size: 0.8rem;
+    padding: 2px 0;
+  }
+
+  /* ---------------------------------------------------------------
+     DRAWER — right side-sheet holding the secondary panels.
+     --------------------------------------------------------------- */
+  .mobile-drawer {
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: min(88vw, 360px);
+    z-index: 1000;
+    background: linear-gradient(180deg, rgba(26, 26, 26, 0.98), rgba(16, 16, 16, 0.98));
+    border-left: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: -22px 0 56px rgba(0, 0, 0, 0.5);
+    transform: translateX(105%);
+    transition: transform 0.28s ease;
+    overflow: hidden;
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+  }
+
+  .mobile-drawer.open {
+    transform: translateX(0);
+  }
+
+  .mobile-drawer-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 16px 14px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    flex-shrink: 0;
+  }
+
+  .mobile-drawer-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--text);
+  }
+
+  .mobile-drawer-close {
+    background: none;
+    border: 0;
+    color: #fff;
+    font-size: 1.9rem;
+    line-height: 1;
+    padding: 0 6px;
+    cursor: pointer;
+  }
+
+  .mobile-drawer-body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  /* Panels sit naturally (full width, auto height) inside the drawer. */
+  .mobile-drawer .search-shell {
+    display: block;
+    width: 100%;
+    margin: 0;
+  }
+
+  .mobile-drawer .panel,
+  .mobile-drawer .control-panel,
+  .mobile-drawer .info-panel,
+  .mobile-drawer .xray-panel {
+    width: auto;
+    min-height: 0;
+  }
+
+  .mobile-drawer .info-panel {
+    min-height: 0;
+    padding-bottom: 16px;
+  }
+
+  .mobile-drawer .occlusion-panel,
+  .mobile-drawer .jaw-panel {
+    display: block;
+  }
+
+  .mobile-drawer-scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 999;
+    background: rgba(0, 0, 0, 0.5);
+    opacity: 0;
+    transition: opacity 0.28s ease;
+  }
+
+  .mobile-drawer-scrim.show {
+    opacity: 1;
+  }
+
+  .mobile-drawer-scrim[hidden] {
+    display: none;
+  }
+
+  body.drawer-open {
+    overflow: hidden;
+  }
+}

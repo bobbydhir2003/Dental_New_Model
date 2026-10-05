@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Odontogram card preview</title>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./main.css">
+  <style>
+    /* Preview-only: fake a dark scene behind the card so the floating card's
+       size/balance can be judged without the 3D app or a server. */
+    body { margin: 0; }
+    .preview-note {
+      position: fixed; left: 14px; top: 10px; z-index: 99;
+      font: 600 13px/1.3 Manrope, sans-serif; color: rgba(255,255,255,.6);
+    }
+    .center-column .scene-area::before {
+      content: ""; position: absolute; inset: 0; border-radius: inherit;
+      background:
+        radial-gradient(60% 60% at 50% 40%, rgba(70,74,80,.18), rgba(12,13,15,0)) ,
+        repeating-linear-gradient(135deg, rgba(255,255,255,.015) 0 18px, transparent 18px 36px);
+    }
+  </style>
+</head>
+<body class="app-shell">
+  <div class="preview-note">Preview — Numbering system card (no 3D / no server needed)</div>
+  <main class="app-main">
+    <aside class="left-column"></aside>
+    <section class="center-column">
+      <div class="scene-area">
+        <div class="scene-overlay-stack" aria-label="Scene controls">
+          <aside class="floating-controls"></aside>
+
+          <section class="odontogram-card floating-odontogram" id="odontogramCard" aria-label="Odontogram and numbering system">
+            <div class="odo-figure">
+              <div class="odo-stage" id="odoStage">
+                <img class="odo-base" id="odoBaseImg"
+                     src="./three/examples/textures/odontogram_universal_dark.png"
+                     alt="Dental odontogram">
+                <div class="odo-layer" id="odoLayer"></div>
+              </div>
+            </div>
+
+            <div class="odo-systems">
+              <div class="odo-systems-title">Numbering system</div>
+              <label class="odo-radio"><input type="radio" name="numSystem" checked><span class="odo-dot"></span><span class="odo-label">Universal</span></label>
+              <label class="odo-radio"><input type="radio" name="numSystem"><span class="odo-dot"></span><span class="odo-label">Palmer</span></label>
+              <label class="odo-radio"><input type="radio" name="numSystem"><span class="odo-dot"></span><span class="odo-label">FDI</span></label>
+              <label class="odo-radio"><input type="radio" name="numSystem"><span class="odo-dot"></span><span class="odo-label">none</span></label>
+            </div>
+          </section>
+        </div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

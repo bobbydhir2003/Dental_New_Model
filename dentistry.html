@@ -1,0 +1,1424 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>iEXCEL - Dentistry</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<link type="text/css" rel="stylesheet" href="main.css">
+	</head>
+	<body>
+
+
+
+
+
+
+		<!-- top DIVISION for iEXCEL logo and prompts  -->
+
+		<style>
+            .my_text
+            {
+                font-family:    Arial, Helvetica, sans-serif;
+                font-size:      40px;
+ 				
+            }
+
+        </style>
+
+		<div class="my_text" id="info">
+
+			<a href="https://www.unmc.edu/iexcel/visualization/index.html" style="color:#b4182d;" target="_blank" rel="noopener">iEXCEL</a> - Dentistry
+		</div>
+
+
+		<!-- DIVISIONSs for compare function (left and right) -->
+
+		<style>
+			.compare
+			{
+				font-family:    Arial, Helvetica, sans-serif;
+				font-size:      20px;
+			}
+		</style>
+
+		<div class="compare" id="compareLeft" style="position: absolute; bottom: 500px; left: 20%; color: lightblue;"></div>
+		<div align = "right" class="compare" id="compareRight" style="position: absolute; bottom: 500px; right: 20%; color: lightblue;"></div>
+
+		
+
+
+
+		
+
+		<!-- Import maps polyfill -->
+		<!-- Remove this when import maps will be widely supported -->
+		<script async src="https://unpkg.com/es-module-shims@1.3.6/dist/es-module-shims.js"></script>
+
+		<script type="importmap">
+			{
+				"imports": {
+					"three": "./three/build/three.module.js"
+				}
+			}
+		</script>
+
+		<script type="module">
+
+			import * as THREE from 'three';
+
+			import { OBJLoader } from './three/examples/jsm/loaders/OBJLoader.js';
+			import { GLTFLoader } from './three/examples/jsm/loaders/GLTFLoader.js';
+			import { RGBELoader } from './three/examples/jsm/loaders/RGBELoader.js';
+			import { GLTFExporter } from './three/examples/jsm/exporters/GLTFExporter.js';
+			import { GUI } from './three/examples/jsm/libs/lil-gui.module.min.js';
+			import { OrbitControls } from './three/examples/jsm/controls/OrbitControls.js';
+			import { OutlinePass } from './three/examples/jsm/postprocessing/OutlinePass.js';
+
+			function exportGLTF( input ) {
+
+				const gltfExporter = new GLTFExporter();
+
+				const options = {
+					hideShow: params.hideShow,
+					//isolate: params.isolate
+
+				};
+			
+
+			}
+
+			const link = document.createElement( 'a' );
+			link.style.display = 'none';
+			document.body.appendChild( link ); // Firefox workaround, see #6594
+
+			function save( blob, filename ) {
+
+				link.href = URL.createObjectURL( blob );
+				link.download = filename;
+				link.click();
+
+				// URL.revokeObjectURL( url ); breaks Firefox...
+
+			}
+
+			function saveString( text, filename ) {
+
+				save( new Blob( [ text ], { type: 'text/plain' } ), filename );
+
+			}
+
+
+
+			function saveArrayBuffer( buffer, filename ) {
+
+				save( new Blob( [ buffer ], { type: 'application/octet-stream' } ), filename );
+
+			}
+
+			let container;
+
+			let camera, object, object2, material, geometry, scene1, scene2, renderer, controls;
+			let gridHelper, sphere, waltHead;
+
+			let carm;
+			let spriteC;
+			let mapC;
+			let group = new THREE.Group();
+			let group_Mesh = new THREE.Group();
+			let selectedTooth;
+			let isolatedTooth;
+
+			//store the state of Compare Mode here:
+			let toggle;
+
+			let compareButton;
+			
+			let intersects_Mesh;
+
+			let compareToothOne = new THREE.Object3D;
+			
+			let compareToothTwo = new THREE.Object3D;
+
+			const params = {
+				hideShow: true,
+				turntable: false,
+				isolate: isolate,
+				unIsolate: unIsolate,
+				openJaw: openJaw,
+				devLobes: devLobes,
+				compare: compare,
+				jawView: false,
+				nerves: false,
+				arteries: false,
+				veins: false,
+				curveOfSpee: false,
+				curveOfWilson: false,
+				sphereOfMonson: false
+				
+			};
+
+				///////////////////////////////////////////////////////////////////////////////////////////
+				/////////////////////        TEETH NAMES          /////////////////////////////////////////
+				///////////////////////////////////////////////////////////////////////////////////////////
+
+
+				const teethNames = [
+								"This is the non-existent tooth number zero",
+
+								"Maxillary Right Second Molar",	
+								"Maxillary Right First Molar",
+								"Maxillary Right Second Premolar",
+								"Maxillary Right First Premolar",
+								"Maxillary Right Canine",
+								"Maxillary Right Lateral Incisor",
+								"Maxillary Right Central Incisor",
+
+								"Maxillary Left Central Incisor",
+								"Maxillary Left Lateral Incisor",
+								"Maxillary Left Canine",
+								"Maxillary Left First Premolar",
+								"Maxillary Left Second Premolar",
+								"Maxillary Left First Molar",
+								"Maxillary Left Second Molar",
+
+								"Mandibular Right Second Molar",
+								"Mandibular Right First Molar",
+								"Mandibular Right Second Premolar",
+								"Mandibular Right First Premolar",
+								"Mandibular Right Lateral Incisor",
+								"Mandibular Right Canine",
+								"Mandibular Right Central Incisor",
+							
+								"Mandibular Left Central Incisor",
+								"Mandibular Left Canine",
+								"Mandibular Left Lateral Incisor",
+								"Mandibular Left First Premolar",
+								"Mandibular Left Second Premolar",
+								"Mandibular Left First Molar",
+								"Mandibular Left Second Molar",
+
+								];
+
+
+			init();
+			animate();
+
+			function init() {
+
+				container = document.createElement( 'div' );
+				document.body.appendChild( container );
+
+				// Make linear gradient texture
+				
+				const data = new Uint8ClampedArray( 100 * 100 * 4 );
+
+				for ( let y = 0; y < 100; y ++ ) {
+
+					for ( let x = 0; x < 100; x ++ ) {
+
+						const stride = 4 * ( 100 * y + x );
+
+						data[ stride ] = Math.round( 255 * y / 99 );
+						data[ stride + 1 ] = Math.round( 255 - 255 * y / 99 );
+						data[ stride + 2 ] = 0;
+						data[ stride + 3 ] = 255;
+
+					}
+
+				}
+
+				const gradientTexture = new THREE.DataTexture( data, 100, 100, THREE.RGBAFormat );
+				gradientTexture.minFilter = THREE.LinearFilter;
+				gradientTexture.magFilter = THREE.LinearFilter;
+				gradientTexture.needsUpdate = true;
+
+				scene1 = new THREE.Scene();
+				scene1.name = 'Scene1';
+
+
+				
+
+				// ---------------------------------------------------------------------
+				// Perspective Camera
+				// ---------------------------------------------------------------------
+				camera = new THREE.PerspectiveCamera( 45, window.innerWidth / window.innerHeight, 1, 2000 );
+				camera.position.set( 0,0,800 );
+				//camera.lookAt( 0,550,0);
+
+				camera.name = 'PerspectiveCamera';
+
+
+				scene1.add( camera );
+
+				// ---------------------------------------------------------------------
+				// Ambient light
+				// ---------------------------------------------------------------------
+				const ambientLight = new THREE.AmbientLight( 0xffffff, 0.2 );
+				ambientLight.name = 'AmbientLight';
+				//ambientLight.castShadow = true;
+				scene1.add( ambientLight );
+
+				// ---------------------------------------------------------------------
+				// DirectLight
+				// ---------------------------------------------------------------------
+				const dirLight = new THREE.DirectionalLight( 0xffffff, 1 );
+				dirLight.target.position.set( 0, 0, - 1 );
+				dirLight.add( dirLight.target );
+				dirLight.lookAt( - 1, - 1, 0 );
+				dirLight.name = 'DirectionalLight';
+				dirLight.castShadow = true;
+				dirLight.shadow.mapSize.width = 1024;
+				dirLight.shadow.mapSize.height = 1024;
+				scene1.add( dirLight );
+
+				// ---------------------------------------------------------------------
+				//LOAD THE GLTF FILE
+				//////////////////////////////////////////////////////////////////////
+				/*
+				const loader = new OBJLoader();
+				loader.load( './three/examples/models/obj/walt/carm.obj', function ( obj ) {
+
+					waltHead = obj;
+					waltHead.scale.multiplyScalar( 1.5 );
+					waltHead.position.set( 400, 0, 0 );
+					//scene1.add( waltHead );
+					
+
+				} );
+				*/
+
+				
+				const gltfLoader = new GLTFLoader();
+				gltfLoader.load( './three/examples/models/gltf/denture.glb', function ( gltf ) {
+
+					carm = gltf.scene;
+					carm.scale.multiplyScalar( 350 );
+					carm.position.set( 0,-50,0 );
+
+					//carm.getObjectByName("mainBody").material.color.set( "rgb(255, 0, 0)" );
+					carm.castShadow = true;
+					carm.receiveShadow = true;
+					scene1.add( carm );
+
+
+					group_Mesh.children[0] = new THREE.Object3D();
+
+					//add teeth from position 29 to 57 in the group
+					for (var i = 1; i <= 28; i++ ){
+
+						var toothObject = carm.getObjectByName("tooth_" + i);
+
+						group_Mesh.children[i] = toothObject;
+					}
+
+					
+					carm.getObjectByName("Skin_Nerves").visible = false;
+					carm.getObjectByName("Arteries").visible = false;
+					carm.getObjectByName("Veins").visible = false;
+
+					carm.getObjectByName("curveOfSpee").visible = false;
+					carm.getObjectByName("curveOfWilson").visible = false;
+					carm.getObjectByName("sphereOfMonson").visible = false;
+
+
+					carm.getObjectByName("curveOfSpee").material.transparent = true;
+					carm.getObjectByName("curveOfSpee").material.opacity = 0.8;
+
+					carm.getObjectByName("curveOfWilson").material.transparent = true;
+					carm.getObjectByName("curveOfWilson").material.opacity = 0.8;
+
+					carm.getObjectByName("sphereOfMonson").material.transparent = true;
+					carm.getObjectByName("sphereOfMonson").material.opacity = 0.5;
+					
+				} );
+
+				
+				
+				//---------------------------------------------------------------------
+				// KEYBOARD CONTROL
+				//---------------------------------------------------------------------
+
+				
+				
+				document.onkeydown = function(e) {
+
+					for(var i = 1; i <= 9; i++)
+					{
+						var toothNum = "tooth_" + i;
+						var j = i + 96;
+						var k = i + 48;
+
+						if(e.keyCode == j || e.keyCode == k){
+
+
+							selectedTooth = carm.getObjectByName(toothNum);
+
+							highlightObject(toothNum);1
+
+							highlightOdontogram(i);
+
+
+							
+						}
+
+						
+						
+					}
+
+					//detect "i" for isolate
+					if(e.keyCode == 73){
+
+						isolate();
+					}
+
+					//detect "u" for unisolate
+					if(e.keyCode == 85){
+
+					unIsolate();
+					}
+
+					//detect "d" for developmental lobes
+					if(e.keyCode == 68){
+
+					devLobes();
+					}
+
+
+					
+				}
+
+				
+				
+				//---------------------------------------------------------------------
+				// HUD SPRITES - ODONTOGRAM
+				//---------------------------------------------------------------------
+
+				//group = new THREE.Group();
+
+
+				camera.add( group );
+
+				
+
+				var imageWidth;
+				var imageHeight;
+
+				
+				document.addEventListener( 'mousedown', onPointerMove, false );
+				document.addEventListener('touchstart', onPointerMove, false);
+				
+				
+				const map0 = new THREE.TextureLoader().load( './three/examples/textures/odontogram.png', function(tex) {
+				imageWidth = tex.image.width / 100;
+				imageHeight = tex.image.height / 100;
+				const material0 = new THREE.SpriteMaterial( { map: map0 } );
+				const sprite = new THREE.Sprite( material0 );
+				sprite.scale.set(imageWidth,imageHeight,1);
+				sprite.position.set(50,-32,-100)
+				//camera.add( sprite );
+				group.add( sprite );;
+				});
+				
+
+				for(var i = 1; i <= 28; i++){
+
+				
+				var path = "./three/examples/textures/tooth_selection/tooth_" + i + ".png";
+
+				
+				const map1 = new THREE.TextureLoader().load( path, function(tex) {
+				imageWidth = tex.image.width / 100;
+				imageHeight = tex.image.height / 100;
+				const material1 = new THREE.SpriteMaterial( { map: map1 } );
+				const sprite = new THREE.Sprite( material1 );
+				sprite.scale.set(imageWidth,imageHeight,1);
+				sprite.position.set(50,-32,-100)
+				//camera.add( sprite );
+				group.add( sprite );
+				sprite.visible = false;
+
+				});
+
+
+				
+
+
+				
+				//var toothObject = carm.getObjectByName("tooth_" + i);
+
+				//group.add(toothObject);
+
+
+				
+
+
+
+			}
+
+
+
+				////MAPPING PIXEL VALUES TO EVERY TOOTH
+				
+				//detect the click and query if the user clicked
+				//on the odontogram
+				let selectedObject = null;
+				const raycaster = new THREE.Raycaster();
+				const pointer = new THREE.Vector2();
+				
+				function onPointerMove( event ) {
+					
+					if ( selectedObject ) {
+
+						//selectedObject.material.color.set( '#69f' );
+						selectedObject = null;
+
+					}
+
+					pointer.x = ( event.clientX / window.innerWidth ) * 2 - 1;
+					pointer.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
+
+					raycaster.setFromCamera( pointer, camera );
+
+					const intersects = raycaster.intersectObject( group, true );
+
+
+
+					
+
+					if ( intersects.length > 0 ) {
+
+						const res = intersects.filter( function ( res ) {
+
+							return res && res.object;
+
+						} )[ 0 ];
+
+						if ( res && res.object ) {
+
+							selectedObject = res.object;
+
+							//if the user did click on the odontogram, query the pixel value of the
+							//point of click and store it in intersectX and intersectY
+							var intersectX = intersects[0].uv.x * imageWidth * 100;
+							var intersectY =  (imageHeight - (intersects[0].uv.y * imageHeight)) * 100;
+
+
+							
+							//coverage area of every tooth on the
+							//odontogram image in the format [x1,x2,y1,y2]
+							var toothReg = [[330,555,170,643],
+										[555,813,142,664],
+										[813,982,142,661],
+										[982,1160,127,643],
+										[1160,1336,46,650],
+										[1336,1486,140,660],
+										[1486,1705,142,688],
+										[1785,2009,136,685],
+										[2009,2157,131,658],
+										[2157,2330,57,650],
+										[2330,2519,131,633],
+										[2519,2675,140,658],
+										[2675,2930,156,666],
+										[2930,3161,156,666],
+										[314,561,748,1242],
+										[561,816,740,1234],
+										[816,980,740,1240],
+										[980,1153,740,1226],
+										[1153,1334,740,1316],
+										[1334,1499,748,1234],
+										[1499,1696,732,1242],
+										[1795,1992,732,1234],
+										[1992,2157,748,1250],
+										[2157,2330,724,1300],
+										[2330,2519,740,1258],
+										[2519,2675,740,1242],
+										[2675,2938,740,1258],
+										[2938,3169,740,1250]
+											
+											];
+
+
+							
+
+							//query if the click was in the coverage area
+							//of any tooth and then highlight that tooth
+							for(var i = 1; i <=28; i++){
+
+									
+
+
+
+									var toothNum = "tooth_" + i;
+
+									if( toothReg[i-1][0]< intersectX 
+										&& intersectX < toothReg[i-1][1]
+										&& toothReg[i-1][2] < intersectY 
+										&& intersectY < toothReg[i-1][3]){
+
+										var j  = i;
+										highlightObject(toothNum);
+											
+											
+										highlightOdontogram(i);
+
+
+
+										//feed the selected tooth info to selectedTooth
+										//variable for other functions (like isolate) to use
+										selectedTooth = carm.getObjectByName(toothNum);
+
+										
+
+										
+
+
+
+										;}
+
+
+
+
+							}
+
+
+
+
+
+
+
+
+						}
+
+					}
+
+
+
+					///////////////////TEETH MESH SELECTION UPON CLICK///////////////////////////
+					
+
+					let intersectedTooth = null;
+					raycaster.setFromCamera( pointer, camera );
+					intersects_Mesh = raycaster.intersectObject( group_Mesh, true );
+
+					
+					if ( intersects_Mesh.length > 0 ) {
+
+						const res2 = intersects_Mesh.filter( function ( res2 ) {
+
+							return res2 && res2.object;
+
+						} )[ 0 ];
+
+						if ( res2 && res2.object ) {
+
+							intersectedTooth = res2.object;
+
+							highlightObject(intersectedTooth.name);
+
+							selectedTooth = intersectedTooth;
+
+
+
+							//QUERY THE NUMBER OF THE TOOTH THAT IS CLICKED ON
+							var toothNum = parseInt(intersectedTooth.name.substring(6));
+
+							highlightOdontogram(toothNum);
+							
+
+							
+
+					}}
+
+					
+
+				}
+
+
+
+				// ---------------------------------------------------------------------
+				// Grid
+				// ---------------------------------------------------------------------
+				gridHelper = new THREE.GridHelper( 2000, 20, 0x888888, 0x444444 );
+				gridHelper.position.y = - 50;
+				gridHelper.name = 'Grid';
+				//scene1.add( gridHelper );
+
+				// ---------------------------------------------------------------------
+				// Axes
+				// ---------------------------------------------------------------------
+				const axes = new THREE.AxesHelper( 500 );
+				axes.name = 'AxesHelper';
+				//scene1.add( axes );
+
+
+				
+
+
+
+
+				// ---------------------------------------------------------------------
+				// Ortho camera
+				// ---------------------------------------------------------------------
+				const cameraOrtho = new THREE.OrthographicCamera( window.innerWidth / - 2, window.innerWidth / 2, window.innerHeight / 2, window.innerHeight / - 2, 0.1, 10 );
+				scene1.add( cameraOrtho );
+				cameraOrtho.name = 'OrthographicCamera';
+
+				material = new THREE.MeshLambertMaterial( {
+					color: 0xffff00,
+					side: THREE.DoubleSide
+				} );
+
+				object = new THREE.Mesh( new THREE.CircleGeometry( 50, 20, 0, Math.PI * 2 ), material );
+				object.position.set( 200, 0, - 400 );
+				////scene1.add( object );
+
+				object = new THREE.Mesh( new THREE.RingGeometry( 10, 50, 20, 5, 0, Math.PI * 2 ), material );
+				object.position.set( 0, 0, - 400 );
+				////scene1.add( object );
+
+				object = new THREE.Mesh( new THREE.CylinderGeometry( 25, 75, 100, 40, 5 ), material );
+				object.position.set( - 200, 0, - 400 );
+				////scene1.add( object );
+
+				//
+				const points = [];
+
+				for ( let i = 0; i < 50; i ++ ) {
+
+					points.push( new THREE.Vector2( Math.sin( i * 0.2 ) * Math.sin( i * 0.1 ) * 15 + 50, ( i - 5 ) * 2 ) );
+
+				}
+
+				object = new THREE.Mesh( new THREE.LatheGeometry( points, 20 ), material );
+				object.position.set( 200, 0, 400 );
+				////scene1.add( object );
+
+
+
+				// ---------------------------------------------------------------------
+				// HDRI - IMAGE BASED LIGHTING
+				// ---------------------------------------------------------------------
+				new RGBELoader()
+				.setPath('./three/examples/textures/equirectangular/')
+				.load('brown_photostudio_01_2k.hdr', function (texture) {
+
+					
+					texture.mapping = THREE.EquirectangularReflectionMapping;
+
+					
+
+					
+					//scene1.background = texture;
+					scene1.background = new THREE.Color( "rgb(23, 25, 33)" );
+					scene1.environment = texture;
+
+				});
+
+
+
+				//////////////////////////////////////////////////////////////////////////////
+
+				renderer = new THREE.WebGLRenderer( { antialias: true } );
+				renderer.setPixelRatio( window.devicePixelRatio );
+				renderer.setSize( window.innerWidth, window.innerHeight );
+				renderer.shadowMap.enabled = true;
+
+
+
+				container.appendChild( renderer.domElement );
+
+				controls = new OrbitControls( camera, renderer.domElement );
+				controls.listenToKeyEvents( window ); // optional
+				controls.enableDamping = false; // an animation loop is required when either damping or auto-rotation are enabled
+				controls.dampingFactor = 0.05;
+
+				controls.screenSpacePanning = true;
+
+				//controls.minDistance = 100;
+				//controls.maxDistance = 1000;
+
+				controls.maxPolarAngle = Math.PI / 2;
+
+				
+
+				/////////////////////////GUI///////////////////////////////////////
+
+				window.addEventListener( 'resize', onWindowResize );
+
+				const gui = new GUI();
+
+				let h = gui.addFolder( 'Settings' );
+				//h.add( params, 'trs' ).name( 'Use TRS' );
+				//h.add( params, 'onlyVisible' ).name( 'Only Visible Objects' );
+				//h.add( params, 'truncateDrawRange' ).name( 'Truncate Draw Range' );
+				//h.add( params, 'binary' ).name( 'Binary (GLB)' );
+				//h.add( params, 'maxTextureSize', 2, 8192 ).name( 'Max Texture Size' ).step( 1 );
+
+
+				/////////////////////JAW VIEW CONTROLS/////////////////////////////////////////
+
+				h.add(params, 'turntable').name('Turntable');
+				h.add(params, 'jawView').name('Jaw View').onChange(function(){
+
+
+					if(params.jawView){
+					jawViewOn();}
+
+					else{
+
+						jawViewOff();
+					}
+
+				}); 
+
+
+				///////////////////////////////////////////////////////////////////////////////////////////
+				/////////////////////NERVES, ARTERIES AND VEINS VISIBLITY/////////////////////////////////////////
+				///////////////////////////////////////////////////////////////////////////////////////////
+				h = gui.addFolder( 'NERVES AND VESSELS' );
+
+
+				h.add(params, 'nerves').name('Nerves').onChange(function(){
+					
+					if(params.nerves){
+					carm.getObjectByName("Skin_Nerves").visible = true;}
+
+					
+					else{
+						carm.getObjectByName("Skin_Nerves").visible = false;}		
+
+				}); 
+
+				h.add(params, 'arteries').name('Arteries').onChange(function(){
+					
+					if(params.arteries){
+					carm.getObjectByName("Arteries").visible = true;}
+
+					
+					else{
+						carm.getObjectByName("Arteries").visible = false;}		
+
+				}); 
+
+				h.add(params, 'veins').name('Veins').onChange(function(){
+					
+					if(params.veins){
+					carm.getObjectByName("Veins").visible = true;}
+
+					
+					else{
+						carm.getObjectByName("Veins").visible = false;}		
+
+				}); 
+				///////////////////////////////////////////////////////////////////////////////////////////
+				/////////////////////OCCLUSION DEFINITION CONTROLS/////////////////////////////////////////
+				///////////////////////////////////////////////////////////////////////////////////////////
+				h = gui.addFolder( 'OCLLUSAL SURFACES' );
+
+				h.add(params, 'curveOfSpee').name('Curve of Spee').onChange(function(){
+					
+					if(params.curveOfSpee){
+					carm.getObjectByName("curveOfSpee").visible = true;}
+
+					
+					else{
+						carm.getObjectByName("curveOfSpee").visible = false;}		
+
+				}); 
+
+				h.add(params, 'curveOfWilson').name('Curve of Wilson').onChange(function(){
+					
+					if(params.curveOfWilson){
+					carm.getObjectByName("curveOfWilson").visible = true;}
+					else{
+						carm.getObjectByName("curveOfWilson").visible = false;}		
+
+				}); 
+
+				h.add(params, 'sphereOfMonson').name('Sphere of Monson').onChange(function(){
+					
+					if(params.sphereOfMonson){
+					carm.getObjectByName("sphereOfMonson").visible = true;}
+					else{
+						carm.getObjectByName("sphereOfMonson").visible = false;}		
+
+				}); 
+
+
+
+
+				///////////////////////////////FUNCTION CONTROLS////////////////////////////////////
+
+				h = gui.addFolder( 'FUNCTIONS' );
+
+
+				h.add(params, 'isolate').name('Isolate Selected Tooth (I)');
+				h.add(params, 'unIsolate').name('Un-isolate (U)');
+				h.add(params, 'openJaw').name('Open/Close Jaw');
+				h.add(params, 'devLobes').name('Developmental Lobe (D)');
+				compareButton = h.add(params, 'compare').name('Compare Mode')
+
+				
+
+				//h.add(carm.getObjectByName("lowerJawGrp").rotation, 'z', 0, 5).name('Try me');
+
+				
+
+				gui.open();
+
+			}
+
+
+			/////////////////////////////////////////////////////////////////////////////////////////
+			//// JAW VIEW
+			/////////////////////////////////////////////////////////////////////////////////////////
+
+
+
+			function jawViewOn(){
+
+			var upperJaw = carm.getObjectByName("upperJawGrp");
+			var lowerJaw = carm.getObjectByName("lowerJawGrp");
+
+
+				
+				
+				upperJaw.rotation.x = -Math.PI/2; //-90 degrees in radians
+				lowerJaw.rotation.x = Math.PI/2; //90 degrees in radians
+
+				lowerJaw.position.z = 20;
+				upperJaw.position.y = 0;  
+
+
+				carm.getObjectByName("RLMaxilla1").visible = false;
+				carm.getObjectByName("mandibleLow").visible = false;
+				carm.getObjectByName("Arteries").visible = false;
+				carm.getObjectByName("Veins").visible = false;
+				carm.getObjectByName("Skin_Nerves").visible = false;
+
+
+			}
+
+			function jawViewOff(){
+			
+			var upperJaw = carm.getObjectByName("upperJawGrp");
+			var lowerJaw = carm.getObjectByName("lowerJawGrp");
+
+			upperJaw.rotation.x = 0;
+			lowerJaw.rotation.x = 0;
+
+			lowerJaw.position.z = -40.914299;
+			upperJaw.position.y = 42.4481010;
+
+			carm.getObjectByName("RLMaxilla1").visible = true;
+			carm.getObjectByName("mandibleLow").visible = true;
+			/*
+			carm.getObjectByName("Arteries").visible = true;
+			carm.getObjectByName("Veins").visible = true;
+			carm.getObjectByName("Skin_Nerves").visible = true;
+			*/
+
+
+			}
+
+
+
+
+			/////////////////////////////////////////////////////////////////////////////////////////
+			//// COMPARE FUNCTION
+			/////////////////////////////////////////////////////////////////////////////////////////
+			
+			//initiate toggle as false
+			toggle = false;			
+
+			//initiate positon vectors
+			//for selection 1 and 2 for compare
+			var onePos = new THREE.Vector3();
+			var twoPos = new THREE.Vector3();
+
+			var one,two;
+
+			function compare(){
+
+				//if COMPARE is clicked 
+				if(toggle == false){				
+
+					toggle = true;
+					
+					//turn the background light blue to show that compare mode is on
+					compareButton.domElement.style.backgroundColor = "lightBlue";
+
+					//switch the jaw view off if it is turned on first
+					//to avoid unexpected rotations
+					jawViewOff();
+
+				document.getElementById("info").innerHTML = "Select the first tooth.";
+
+				document.addEventListener( 'mousedown', onSelectionOne, false );
+				document.addEventListener('touchstart', onSelectionOne, false);
+
+
+				function onSelectionOne(){
+
+
+
+				while(intersects_Mesh <= 0){
+
+					onSelectionOne();
+
+				}
+				if(intersects_Mesh.length > 0){
+				
+				one = selectedTooth;
+
+
+
+				document.removeEventListener( 'mousedown', onSelectionOne, false );
+				document.removeEventListener('touchstart', onSelectionOne, false);
+
+				document.getElementById("info").innerHTML = "Select the second tooth.";
+	
+			}
+				document.addEventListener( 'mousedown', onSelectionTwo, false );
+				document.addEventListener('touchstart', onSelectionTwo, false);
+				
+
+				function onSelectionTwo(){
+
+
+
+					if(intersects_Mesh.length > 0){
+
+
+
+				two = selectedTooth;
+
+				//var two = carm.getObjectByName("tooth_28");
+
+				document.removeEventListener( 'mousedown', onSelectionTwo, false );
+				document.removeEventListener('touchstart', onSelectionTwo, false);
+
+	
+
+				document.getElementById("info").innerHTML = "Comparing teeth " + one.name.substring(6) + " and " + two.name.substring(6);
+
+				onePos.copy(one.position);
+				twoPos.copy(two.position);
+
+
+				carm.traverse( function( object ) {
+
+
+					//make every MESH invisible
+					//except for the selected ones
+					if(object.type == "Mesh"
+					&& object != one
+					&& object != two){
+
+
+						object.visible = false;
+						
+						
+						
+
+					}
+					} );	
+
+
+					
+
+					//make the selected two teeth larger
+					//and set particular position for those
+
+							
+					one.position.set(0 - one.parent.position.x - 20, 0 + one.parent.position.z, 0 + one.parent.position.y);				
+					one.scale.set(3,3,3);
+					
+					
+					two.position.set(0 - two.parent.position.x + 20, 0 + two.parent.position.z, 0 + two.parent.position.y);
+					two.scale.set(3,3,3);
+
+					var oneToothNum = parseInt(one.name.substring(6));
+					var twoToothNum = parseInt(two.name.substring(6));
+
+
+					document.getElementById("compareLeft").innerHTML = "Tooth: <font style='color:red;'>" + teethNames[oneToothNum] + " (" + oneToothNum + ")" + "</font><br> Number of Roots: # <br> Number of Canals: # <br> Comments:";
+					document.getElementById("compareRight").innerHTML = "Tooth: <font style='color:red;'>" + teethNames[twoToothNum] + " (" +  twoToothNum + ")" + "</font><br> Number of Roots: # <br> Number of Canals: # <br> Comments:";
+
+									
+
+					
+
+
+				}
+				}		
+			}
+	}
+
+
+
+				//if COMPARE is clicked again
+				else {
+					
+					toggle = false;
+
+					//turn the background of the Compare Mode button transparent again to show that compare mode is on
+					compareButton.domElement.style.backgroundColor = "transparent";
+
+					carm.traverse( function( object ) {
+
+
+					
+						if(object.type == "Mesh"
+						&& object.name != "curveOfSpee"
+						&& object.name != "curveOfWilson"
+						&& object.name != "sphereOfMonson"
+						&& object.name != "Skin_Nerves"
+						&& object.name != "Arteries"
+						&& object.name != "Veins"){
+
+
+							object.visible = true;
+							
+							
+							
+
+						}
+						} );
+
+		
+				//reset scale and position for selected teeth				
+				one.position.set(onePos.x,onePos.y,onePos.z);
+				one.scale.set(1,1,1);
+
+				two.position.set(twoPos.x,twoPos.y,twoPos.z);
+				two.scale.set(1,1,1);
+
+				document.getElementById("info").innerHTML = "iEXCEL - Dentistry";
+
+				document.getElementById("compareLeft").innerHTML = "";
+				document.getElementById("compareRight").innerHTML = "";
+
+
+				}
+
+
+
+	
+
+
+
+
+			}
+
+
+
+
+			
+			
+			/////////////////////////////////////////////////////////////////////////////////////////
+			//// DEVELOPMENT LOBES FUNCTION
+			/////////////////////////////////////////////////////////////////////////////////////////
+			function devLobes(){
+
+
+				if(selectedTooth == null){
+
+					document.getElementById("info").innerHTML = "Please select a tooth from the odontogram or by clicking on a tooth!";
+
+				}
+
+				var toothObject = selectedTooth;
+				var toothMat = selectedTooth.material;
+
+				var colorMap = new THREE.TextureLoader().load( "./three/examples/textures/devLobes/devLobe_tooth_8.png" );
+				
+				if(toothMat.map == null){
+				toothMat.map = colorMap;
+				toothMat.needsUpdate = true;}
+
+				else{
+
+					toothMat.map = null;
+					toothMat.needsUpdate = true;
+				}
+
+
+			}
+
+
+
+			// HIGHLIGHT OBJECT FUNCTION //////////////////////////////////
+			///////////////////////////////////////////////////////////////
+			function highlightObject(name) {
+
+
+
+				var blue =  new THREE.Color("rgb(0,115,130)");
+				var black =  new THREE.Color(0,0,0);
+				var white = new THREE.Color(1,1,1);
+
+
+				//UNHIGHLIGHT EVERYTHING ELSE
+
+				carm.traverse( function( object ) {
+
+				if(object.material){
+				if ( object.material.emissive.equals(blue))
+				{
+					object.material.emissive.set(black);
+					
+				} 
+			}
+				} );
+				/////////////////////////////////////
+
+
+				object = carm.getObjectByName(name);
+				var emitColor = object.material.emissive;
+				//var diffColor = carm.getObjectByName("mainBody").material.color;
+
+
+
+
+				if(emitColor.equals(black)){
+					
+					//diffColor.set(blue);
+					emitColor.set(blue);
+				}
+				else{
+					emitColor.set(black);
+					//diffColor.set(white);
+				}
+
+
+				setTimeout(function() {
+					emitColor.set(black);
+					//diffColor.set(white);
+				}, 5000);
+
+
+
+				//carm.getObjectByName("mainBody").material.emissive.set("rgb(0, 100, 255)");
+
+
+
+				}
+
+
+			function highlightOdontogram(toothNumber){
+
+
+			//UN-HIGHLIGHT THE ODONTOGRAM
+			for(var i = 1; i <=28; i++)
+			{
+				if(group.children[i].visible == true){
+				group.children[i].visible = false;}
+			}
+
+			//AND THEN HIGHLIGHT THE TOOTH NUMBER THAT'S SELECTED
+			//BY MAKING THAT TOOTH-HIGHLIGHT-PNG VISIBLE
+			group.children[toothNumber].visible = true;
+
+			//MAKE THE HIGHLIGHT DISAPPEAR AFTER CERTAIN AMOUNG
+			//OF TIME
+			setTimeout(function() {
+				group.children[toothNumber].visible = false;
+			}, 5000);
+
+			document.getElementById("info").innerHTML = "<font style='color:lightBlue;'> Selected Tooth: </font>" + teethNames[toothNumber] + " (" + toothNumber + ")";
+
+			}
+
+		
+
+			function hideShow() {
+
+				waltHead.visible = false;
+
+			}
+
+
+			
+
+			function isolate() {
+
+				
+
+				unIsolate();
+
+
+
+				
+				if(selectedTooth != null){
+
+			carm.traverse( function( object ) {
+			
+			
+
+
+
+				if(object.type == "Mesh"
+				&& object.name != selectedTooth.name){
+
+					
+					object.visible = false;		
+
+
+
+				}
+
+				
+
+			} );
+
+			isolatedTooth = selectedTooth;
+
+			//query world position of the isolated tooth
+			//and set cameraLookAt and orbitControls target
+			//to this position
+			var pos = new THREE.Vector3();
+
+			isolatedTooth.getWorldPosition(pos);
+
+			controls.target = pos;
+			isolatedTooth.scale.set(3,3,3);
+			camera.lookAt(pos);
+
+			var toothNum = parseInt(isolatedTooth.name.substring(6));
+			
+			document.getElementById("compareLeft").innerHTML = "Tooth: <b> <font style='color:red;'>" + teethNames[toothNum] + " (" + toothNum + ")" + "</b> <br> </font> Number of Roots: # <br> Number of Canals: # <br> Comments:";
+
+		}
+			else{
+				document.getElementById("info").innerHTML = "Please select a tooth from the odontogram or by clicking on a tooth!";
+				
+			}
+				
+
+
+				
+			}
+
+
+			
+
+			function unIsolate() {
+			
+			//run unisolate only if the user
+			//is not in COMPARE mode
+			//to avoid unexpected visibility and scale issues
+			if(toggle == false) {
+
+
+			carm.traverse( function( object ) {
+
+			if(object.type == "Mesh"
+			&& object.name != "curveOfSpee"
+			&& object.name != "curveOfWilson"
+			&& object.name != "sphereOfMonson"
+			&& object.name != "Skin_Nerves"
+			&& object.name != "Arteries"
+			&& object.name != "Veins"){
+
+				
+				object.visible = true;		
+
+
+			}
+			} );
+
+			if(isolatedTooth != null){
+			controls.target = new THREE.Vector3();
+			isolatedTooth.scale.set(1,1,1);
+			camera.lookAt(0,0,0);
+		
+			document.getElementById("compareLeft").innerHTML = "";}
+
+			}
+
+		
+		//if compare mode is on, display an error.
+		else{
+
+			document.getElementById("info").innerHTML = "Un-Isolate cannot work in Compare mode.";
+
+		}
+	}
+		
+
+			function openJaw() {
+
+
+
+				var lowerJaw = carm.getObjectByName("lowerJawGrp");
+
+				if(lowerJaw.rotation.x == 0)
+				{
+					lowerJaw.rotation.x = 0.3;
+				}
+				else
+				{
+					lowerJaw.rotation.x = 0;
+				}
+				
+			}
+
+
+			
+
+			function onWindowResize() {
+
+				camera.aspect = window.innerWidth / window.innerHeight;
+				camera.updateProjectionMatrix();
+
+				renderer.setSize( window.innerWidth, window.innerHeight );
+
+			}
+
+			//
+
+			
+
+			function animate() {
+
+				requestAnimationFrame( animate );
+
+
+				if(!params.turntable){
+				render();}
+				else{
+					rotateCam();
+				}
+
+			}
+
+			function render() {
+
+
+				renderer.render( scene1, camera );
+
+			}
+
+			function rotateCam(){
+
+				const timer = Date.now() * 0.0001;
+
+
+				
+				camera.position.x = Math.cos( timer ) * 800;
+				camera.position.y = 100;
+				camera.position.z = Math.sin( timer ) * 800;
+
+
+
+				camera.lookAt( 0,0,0);
+				
+				renderer.render( scene1, camera );
+
+			}
+
+		</script>
+
+	</body>
+</html>

@@ -1,0 +1,2 @@
+denture_v3.glb filter=lfs diff=lfs merge=lfs -text
+three/examples/models/gltf/denture.glb filter=lfs diff=lfs merge=lfs -text
