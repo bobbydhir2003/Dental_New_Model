@@ -29,6 +29,7 @@ const LEGACY = {
 	aliases: {},
 	placeholders: [],
 	disableVertexColors: [], // legacy nerves/vessels rely on their vertex colours
+	colorScale: {},
 	repivotTeeth: false,
 	highlightSkipTissues: [],
 	pickSkipTissues: [],
@@ -76,6 +77,11 @@ const V3 = {
 	// black bands around the sockets/gum margin. Ignore it (asset untouched).
 	// Uses the legacy alias name (aliases are applied first).
 	disableVertexColors: [ 'UMesh_PM3D_Sphere3D2_26' ],
+	// The maxilla has no UVs in the source asset, so its textures cannot map and
+	// it renders as a flat colour that reads lighter than the textured mandible
+	// (measured 183 vs 166 mean luminance). A subtle darkening narrows the gap
+	// without hiding the limitation. Proper fix: re-export with UVs.
+	colorScale: { RLMaxilla1: 0.92 },
 	repivotTeeth: true,
 	highlightSkipTissues: [ 'pulp' ],
 	pickSkipTissues: [ 'pulp' ], // pulp sits inside dentin; never the first hit
@@ -99,7 +105,16 @@ const V3 = {
 	// washed out and flat (measured mean luminance 192 vs legacy 133). Less fill
 	// and a slightly stronger key light restore shading/depth: measured 149
 	// mean luminance, contrast close to legacy. Values chosen by comparison.
-	lighting: { ambient: 0.15, hemisphere: 0.35, directional: 1.5, envMapIntensity: 0.3 },
+	// 3-point rig: the key light sits high, so the lower gum's labial surface
+	// (which faces slightly down) was under-lit and read flat. A weak low front
+	// fill lights it (+23% visible lower-gum detail) and a weak rim separates
+	// edges from the dark background; ambient/hemisphere drop so overall
+	// brightness stays balanced (measured mean luminance 147 vs 149 before).
+	lighting: {
+		ambient: 0.05, hemisphere: 0.25, directional: 1.45, envMapIntensity: 0.3,
+		fill: { intensity: 0.22, position: [ - 320, - 260, 260 ] },
+		rim: { intensity: 0.30, position: [ 220, 180, - 450 ] },
+	},
 	// Near-white enamel cannot show an additive emissive glow, so the selected
 	// tooth's base colour is also tinted teal (restored on deselect).
 	highlightTint: 0x37c4d4,
@@ -244,9 +259,19 @@ export function applySceneLighting( scene, config ) {
 	const l = config && config.lighting;
 	if ( ! scene || ! l ) return;
 	scene.traverse( function ( o ) {
+		if ( o.userData.dentalExtraLight ) return; // fill/rim keep their own values
 		if ( o.isAmbientLight ) o.intensity = l.ambient;
 		else if ( o.isHemisphereLight ) o.intensity = l.hemisphere;
 		else if ( o.isDirectionalLight ) o.intensity = l.directional;
+	} );
+	// Optional fill / rim directional lights (added once per scene, aimed at the origin).
+	[ [ 'DentalFillLight', l.fill ], [ 'DentalRimLight', l.rim ] ].forEach( function ( entry ) {
+		if ( ! entry[ 1 ] || scene.getObjectByName( entry[ 0 ] ) ) return;
+		const light = new THREE.DirectionalLight( 0xffffff, entry[ 1 ].intensity );
+		light.name = entry[ 0 ];
+		light.position.fromArray( entry[ 1 ].position );
+		light.userData.dentalExtraLight = true;
+		scene.add( light );
 	} );
 }
 
@@ -358,6 +383,30 @@ export function normalizeModel( root, config ) {
 				own.vertexColors = false;
 				own.needsUpdate = true;
 				own.userData.dentalVertexColorsDisabled = true;
+				return own;
+			};
+			o.material = Array.isArray( o.material ) ? o.material.map( fix ) : fix( o.material );
+		} );
+	} );
+
+	// 1c. Subtle per-object base-colour scaling (materials cloned if shared).
+	Object.keys( config.colorScale || {} ).forEach( function ( name ) {
+		const target = root.getObjectByName( name );
+		if ( ! target ) { console.warn( '[dental-model] colorScale target missing:', name ); return; }
+		const inside = new Set(), usedOutside = new Set();
+		target.traverse( function ( o ) { inside.add( o ); } );
+		root.traverse( function ( o ) {
+			if ( ! inside.has( o ) && o.material ) ( Array.isArray( o.material ) ? o.material : [ o.material ] ).forEach( function ( m ) { usedOutside.add( m ); } );
+		} );
+		const done = new Map();
+		target.traverse( function ( o ) {
+			if ( ! o.isMesh || ! o.material ) return;
+			const fix = function ( m ) {
+				if ( ! m || ! m.color ) return m;
+				if ( done.has( m ) ) return done.get( m );
+				const own = usedOutside.has( m ) ? m.clone() : m;
+				own.color.multiplyScalar( config.colorScale[ name ] );
+				done.set( m, own );
 				return own;
 			};
 			o.material = Array.isArray( o.material ) ? o.material.map( fix ) : fix( o.material );

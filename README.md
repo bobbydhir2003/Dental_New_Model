@@ -99,8 +99,12 @@ These come from the asset itself, not the code:
 
 - No arteries/veins (the Nerves toggle shows nerves only).
 - Maxilla only — no full cranium as in the legacy model.
-- Lower enamel (teeth 18–31) and the maxilla have no UV coordinates, so they
-  render a flat colour instead of a texture.
+- Lower enamel (teeth 18–31) has no UV coordinates, so it renders a flat
+  colour instead of a texture.
+- The Maxilla (`Maxilla_SG`, `CutBoneSG`) has no UV coordinates in the source
+  GLB, so its colour and normal textures cannot render (it shows a single
+  flat colour, slightly toned down in the adapter). The proper fix is a
+  corrected export from the modeller with UVs (+ tangents) for the Maxilla.
 - Tooth 14's pulp mesh uses a blue "filling" material; preserved as supplied.
 - Developmental lobes are disabled for v3 (that texture only fits legacy UVs).
 - Lower third molars (17, 32) sit below the occlusal plane as authored.

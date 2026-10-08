@@ -215,6 +215,12 @@ const selBefore = await sel(); await page.mouse.click(hiddenPt.x, hiddenPt.y); a
 check('hidden teeth are not clickable', (await sel()) === selBefore, { selBefore, now: await sel() });
 await clickToggle('teethCheckbox');
 
+// ---------------------------------------------------------------- LIGHTING
+const rig = await ev(() => { const sc = window.__dental.carm.parent; const g = (n) => { const o = sc.getObjectByName(n); return o ? +o.intensity.toFixed(2) : null; };
+  return { amb: g('AmbientLight'), hemi: g('HemisphereLight'), key: g('DirectionalLight'), fill: g('DentalFillLight'), rim: g('DentalRimLight') }; });
+if (MODEL === 'legacy') check('lighting: legacy rig unchanged (0.46/0.55/1.35, no fill/rim)', rig.amb === 0.46 && rig.hemi === 0.55 && rig.key === 1.35 && rig.fill === null && rig.rim === null, rig);
+else check('lighting: v3 3-point rig (amb 0.05, hemi 0.25, key 1.45, fill 0.22, rim 0.30)', rig.amb === 0.05 && rig.hemi === 0.25 && rig.key === 1.45 && rig.fill === 0.22 && rig.rim === 0.3, rig);
+
 // ---------------------------------------------------------------- GUM VERTEX COLOURS
 // v3 ships a black/white vertex-colour mask on the upper gum that rendered as
 // solid black socket/margin bands; the adapter disables it (v3 only).
@@ -260,7 +266,8 @@ for (const teeth of ['visible', 'hidden']) {
   if (MODEL === 'legacy') {
     check(`gum close-up (teeth ${teeth}): legacy gum has no black band (<1% pure-black gum pixels)`, now.gumPx > 200 && now.otherPureBlack / now.gumPx < 0.01, now);
   } else {
-    check(`gum close-up (teeth ${teeth}): former black-mask areas render as gum (0 pure-black px, brightness ratio >= 0.4)`, now.maskPx > 20 && now.maskPureBlack === 0 && now.ratio >= 0.4 && now.otherPureBlack / now.gumPx < 0.01, now);
+    // <=3% pure black allows natural socket-crevice shadow; the defect gives ~88%.
+    check(`gum close-up (teeth ${teeth}): former black-mask areas render as gum (<=3% pure-black px, brightness ratio >= 0.4)`, now.maskPx > 20 && now.maskPureBlack / now.maskPx <= 0.03 && now.ratio >= 0.4 && now.otherPureBlack / now.gumPx < 0.01, now);
     const vcOn = await ev(() => window.__t.gumPixelStats(true));
     check(`gum close-up (teeth ${teeth}): check is sensitive (mask re-enabled -> black band, ratio < 0.2)`, vcOn.maskPureBlack > 10 && vcOn.ratio < 0.2, vcOn);
   }
@@ -330,6 +337,8 @@ const nParts = MODEL === 'legacy' ? 1 : 3;
 check('compare: split active with correct titles', cmp[2].active && /\(8\)/.test(cmp[2].titles[0]) && /\(19\)/.test(cmp[2].titles[1]), cmp[2]);
 check('compare: left shows complete tooth (' + nParts + ' part(s))', cmp[0].parts.length === nParts, cmp[0].parts);
 check('compare: right shows complete tooth', cmp[1].parts.length === nParts, cmp[1].parts);
+if (MODEL !== 'legacy') { const cr = await ev(() => window.__dental.compareViewers.map(v => { let f = 0, r = 0; v.getMesh().parent.traverse(o => { if (o.name === 'DentalFillLight') f++; if (o.name === 'DentalRimLight') r++; }); return f + r; }));
+  check('compare: both canvases use the v3 3-point rig', cr.length === 2 && cr.every(n => n === 2), cr); }
 check('compare: clones own their geometry/materials', !cmp[0].shared && !cmp[1].shared);
 check('compare: no carried-over glow', cmp[0].emissiveClean && cmp[1].emissiveClean);
 if (MODEL !== 'legacy') check('compare: clones restored to original opacity', cmp[0].opaque && cmp[1].opaque);

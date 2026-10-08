@@ -76,6 +76,18 @@ const R = v3.root;
 check('aliases: Mandible -> mandibleLow', R.getObjectByName('mandibleLow') && R.getObjectByName('mandibleLow').userData.originalName === 'Mandible');
 check('aliases: Maxilla group -> RLMaxilla1', R.getObjectByName('RLMaxilla1') && R.getObjectByName('RLMaxilla1').isGroup);
 check('aliases: gums', !!R.getObjectByName('UMesh_PM3D_Sphere3D2_26') && !!R.getObjectByName('UMesh_LowerGums_Hide_Teeth6'));
+const maxMeshes = []; R.getObjectByName('RLMaxilla1').traverse(o => { if (o.isMesh) maxMeshes.push(o); });
+check('colour scale: v3 maxilla base colour toned down x0.92 (both parts)', maxMeshes.length === 2 && maxMeshes.every(m => Math.abs(m.material.color.r - 0.92) < 1e-6 && Math.abs(m.material.color.b - 0.92) < 1e-6), maxMeshes.map(m => m.material.color.getHexString()));
+// v3 3-point lighting on a scene shaped like the app's (ambient + hemisphere + key)
+const mkScene = () => { const sc = new THREE.Scene(); sc.add(new THREE.AmbientLight(0xffffff, 0.46), new THREE.HemisphereLight(0xffffff, 0x000000, 0.55)); const key = new THREE.DirectionalLight(0xffffff, 1.35); key.name = 'DirectionalLight'; sc.add(key); return sc; };
+const sv3 = mkScene(); A.applySceneLighting(sv3, A.MODEL_CONFIGS.v3); A.applySceneLighting(sv3, A.MODEL_CONFIGS.v3);
+const fill = sv3.getObjectByName('DentalFillLight'), rim = sv3.getObjectByName('DentalRimLight');
+check('lighting v3: ambient 0.05, hemisphere 0.25, key 1.45', sv3.children[0].intensity === 0.05 && sv3.children[1].intensity === 0.25 && sv3.getObjectByName('DirectionalLight').intensity === 1.45);
+check('lighting v3: fill 0.22 at (-320,-260,260), rim 0.30 at (220,180,-450)', fill && rim && fill.intensity === 0.22 && rim.intensity === 0.3 && fill.position.equals(new THREE.Vector3(-320, -260, 260)) && rim.position.equals(new THREE.Vector3(220, 180, -450)));
+check('lighting v3: applying twice adds no duplicate lights', sv3.children.filter(o => o.isDirectionalLight).length === 3);
+check('lighting: v3-source shares the v3 rig', JSON.stringify(A.MODEL_CONFIGS['v3-source'].lighting) === JSON.stringify(A.MODEL_CONFIGS.v3.lighting));
+const sLeg = mkScene(); A.applySceneLighting(sLeg, A.MODEL_CONFIGS.legacy);
+check('lighting legacy: rig untouched, no extra lights', sLeg.children.length === 3 && sLeg.children[0].intensity === 0.46 && sLeg.children[1].intensity === 0.55 && sLeg.children[2].intensity === 1.35);
 const gumMeshes = []; R.getObjectByName('UMesh_PM3D_Sphere3D2_26').traverse(o => { if (o.isMesh) gumMeshes.push(o); });
 check('vertex colours: v3 upper gum + palate have vertexColors disabled', gumMeshes.length === 2 && gumMeshes.every(m => m.material.vertexColors === false && m.material.userData.dentalVertexColorsDisabled), gumMeshes.map(m => m.material.vertexColors));
 check('vertex colours: unshared gum material changed in place (not cloned)', R.getObjectByName('Upper_gum_1').material === v3.gumMat);
@@ -168,6 +180,7 @@ check('legacy: highlight material = tooth material', A.getToothMaterials(legacyT
 check('legacy: no re-pivot (position untouched)', legacyTooth.position.x === toothX(5) * 100 + 36);
 check('legacy: jaw open 0.3 and literal-equivalent view offsets', A.getJawOpenAngle() === 0.3 && (() => { const j = L.getObjectByName('lowerJawGrp'); A.applyJawViewOffsets(L.getObjectByName('upperJawGrp'), j); const ok = Math.abs(j.position.z - 20) < 1e-9 && Math.abs(L.getObjectByName('upperJawGrp').position.y) < 1e-9; A.restoreJawBasePosition(j); return ok; })());
 check('legacy: devLobes enabled', A.isFeatureEnabled('devLobes'));
+check('legacy: maxilla colour untouched', L.getObjectByName('RLMaxilla1').material.color.getHex() === 0xffffff);
 check('legacy: vertex-colour handling untouched (nerves/vessels/gum keep vertexColors)', ['Arteries', 'Veins', 'Skin_Nerves', 'UMesh_PM3D_Sphere3D2_26'].every(n => L.getObjectByName(n).material.vertexColors === true && !L.getObjectByName(n).material.userData.dentalVertexColorsDisabled));
 check('legacy: compare clone is the single tooth mesh', (() => { const c = A.buildToothDisplayClone(legacyTooth); let k = 0; c.traverse(o => { if (o.isMesh) k++; }); return k === 1; })());
 
