@@ -11,7 +11,7 @@ import {
 	getActiveModelConfig, normalizeModel, getToothNumber, getToothMaterials,
 	isPartOfTooth, getToothCenter, isVisibleInScene, restoreJawBasePosition, restoreJawBaseRotation,
 	applyJawViewOffsets, getJawOpenAngle, isFeatureEnabled, buildToothDisplayClone, disposeOwnedObject,
-	getHighlightTint, applyRendererSettings
+	getHighlightTint, applyRendererSettings, applySceneLighting
 } from './dental_model_adapter.js';
 
 // Model selected via ?model=legacy|v3|v3-source (see dental_model_adapter.js).
@@ -490,6 +490,7 @@ let cardSelectedTooth = null;
 				dirLight.shadow.mapSize.width = 1024;
 				dirLight.shadow.mapSize.height = 1024;
 				scene1.add( dirLight );
+				applySceneLighting( scene1, ACTIVE_MODEL ); // per-model light balance (v3 only)
 
 				// ---------------------------------------------------------------------
 				//LOAD THE GLTF FILE
@@ -2377,6 +2378,9 @@ const material1 = new THREE.SpriteMaterial({
 				const dirLight = new THREE.DirectionalLight( 0xfff5e9, 1.35 );
 				dirLight.position.set( 240, 420, 360 );
 				scene.add( dirLight );
+				if ( typeof applySceneLighting === "function" && typeof ACTIVE_MODEL !== "undefined" ) {
+					applySceneLighting( scene, ACTIVE_MODEL ); // same light balance as the main view
+				}
 
 				// --- camera ---
 				const camera = new THREE.PerspectiveCamera( 45, 1, 0.1, 100000 );

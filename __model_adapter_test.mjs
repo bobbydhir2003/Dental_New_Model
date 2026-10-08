@@ -34,11 +34,16 @@ function buildV3Like() {
   const up = mkJaw('upperJawGrp', true), lo = mkJaw('lowerJawGrp', false);
   const mand = new THREE.Mesh(box(0, -0.2, 0, 0.5), new THREE.MeshStandardMaterial()); mand.name = 'Mandible'; lo.add(mand);
   const max = new THREE.Group(); max.name = 'Maxilla'; max.add(new THREE.Mesh(box(0, 0.2, 0, 0.4)), new THREE.Mesh(box(0, 0.25, 0, 0.1))); up.add(max);
-  const ug = new THREE.Group(); ug.name = 'Upper_gum'; ug.add(new THREE.Mesh(box(0, 0.1, 0, 0.3))); up.add(ug);
+  const gumMat = new THREE.MeshStandardMaterial({ name: 'gumsSG', vertexColors: true, color: 0xd04050, roughness: 0.23 });
+  const palateMat = new THREE.MeshStandardMaterial({ name: 'palate_SG', vertexColors: true, roughness: 0.23 });
+  const ug = new THREE.Group(); ug.name = 'Upper_gum';
+  const gumMesh = new THREE.Mesh(box(0, 0.1, 0, 0.3), gumMat); gumMesh.name = 'Upper_gum_1';
+  const palMesh = new THREE.Mesh(box(0, 0.12, 0, 0.2), palateMat); palMesh.name = 'Upper_gum_2';
+  ug.add(gumMesh, palMesh); up.add(ug);
   const lg = new THREE.Mesh(box(0, -0.1, 0, 0.3)); lg.name = 'Lower_gum'; lo.add(lg);
-  const nerves = new THREE.Group(); nerves.name = 'Skin_Nerves'; nerves.add(new THREE.Mesh(box(0.2, 0, 0))); root.add(nerves);
+  const nerves = new THREE.Group(); nerves.name = 'Skin_Nerves'; const nerveMesh = new THREE.Mesh(box(0.2, 0, 0), palateMat); nerveMesh.name = 'nerve_sharing_palate_mat'; nerves.add(nerveMesh); root.add(nerves);
   for (const c of ['curveOfSpee', 'curveOfWilson', 'sphereOfMonson']) { const m = new THREE.Mesh(box(0, 0, 0), new THREE.MeshStandardMaterial()); m.name = c; root.add(m); }
-  return { root, dentin, pulp, tex };
+  return { root, dentin, pulp, tex, gumMat, palateMat };
 }
 
 function buildLegacyLike() {
@@ -48,7 +53,7 @@ function buildLegacyLike() {
     for (let n = a; n <= b; n++) { const m = new THREE.Mesh(box(0, 0, 0, 4), new THREE.MeshStandardMaterial()); m.name = 'tooth_' + n; m.position.set(toothX(n) * 100 + 36, -30, 40); jaw.add(m); }
   }
   for (const n of ['mandibleLow', 'RLMaxilla1', 'UMesh_PM3D_Sphere3D2_26', 'UMesh_LowerGums_Hide_Teeth6', 'Arteries', 'Veins', 'Skin_Nerves', 'curveOfSpee', 'curveOfWilson', 'sphereOfMonson']) {
-    const m = new THREE.Mesh(box(0, 0, 0), new THREE.MeshStandardMaterial()); m.name = n; teethRoot.add(m);
+    const m = new THREE.Mesh(box(0, 0, 0), new THREE.MeshStandardMaterial({ vertexColors: /Arteries|Veins|Skin_Nerves|UMesh_PM3D/.test(n) })); m.name = n; teethRoot.add(m);
   }
   return root;
 }
@@ -71,6 +76,13 @@ const R = v3.root;
 check('aliases: Mandible -> mandibleLow', R.getObjectByName('mandibleLow') && R.getObjectByName('mandibleLow').userData.originalName === 'Mandible');
 check('aliases: Maxilla group -> RLMaxilla1', R.getObjectByName('RLMaxilla1') && R.getObjectByName('RLMaxilla1').isGroup);
 check('aliases: gums', !!R.getObjectByName('UMesh_PM3D_Sphere3D2_26') && !!R.getObjectByName('UMesh_LowerGums_Hide_Teeth6'));
+const gumMeshes = []; R.getObjectByName('UMesh_PM3D_Sphere3D2_26').traverse(o => { if (o.isMesh) gumMeshes.push(o); });
+check('vertex colours: v3 upper gum + palate have vertexColors disabled', gumMeshes.length === 2 && gumMeshes.every(m => m.material.vertexColors === false && m.material.userData.dentalVertexColorsDisabled), gumMeshes.map(m => m.material.vertexColors));
+check('vertex colours: unshared gum material changed in place (not cloned)', R.getObjectByName('Upper_gum_1').material === v3.gumMat);
+check('vertex colours: material shared with another mesh is cloned first', R.getObjectByName('Upper_gum_2').material !== v3.palateMat && v3.palateMat.vertexColors === true && R.getObjectByName('nerve_sharing_palate_mat').material === v3.palateMat);
+check('vertex colours: gum colour/roughness/maps untouched', v3.gumMat.color.getHex() === 0xd04050 && v3.gumMat.roughness === 0.23 && R.getObjectByName('Upper_gum_2').material.roughness === 0.23);
+check('vertex colours: tooth materials untouched', A.getToothMeshes(R.getObjectByName('tooth_8')).every(m => !m.material.userData.dentalVertexColorsDisabled));
+check('vertex colours: v3-source config disables the same object', JSON.stringify(A.MODEL_CONFIGS['v3-source'].disableVertexColors) === JSON.stringify(A.MODEL_CONFIGS.v3.disableVertexColors));
 const art = R.getObjectByName('Arteries'), vei = R.getObjectByName('Veins');
 check('placeholders: Arteries/Veins exist, empty, invisible', art && vei && !art.visible && !vei.visible && art.children.length === 0 && vei.children.length === 0);
 
@@ -156,6 +168,7 @@ check('legacy: highlight material = tooth material', A.getToothMaterials(legacyT
 check('legacy: no re-pivot (position untouched)', legacyTooth.position.x === toothX(5) * 100 + 36);
 check('legacy: jaw open 0.3 and literal-equivalent view offsets', A.getJawOpenAngle() === 0.3 && (() => { const j = L.getObjectByName('lowerJawGrp'); A.applyJawViewOffsets(L.getObjectByName('upperJawGrp'), j); const ok = Math.abs(j.position.z - 20) < 1e-9 && Math.abs(L.getObjectByName('upperJawGrp').position.y) < 1e-9; A.restoreJawBasePosition(j); return ok; })());
 check('legacy: devLobes enabled', A.isFeatureEnabled('devLobes'));
+check('legacy: vertex-colour handling untouched (nerves/vessels/gum keep vertexColors)', ['Arteries', 'Veins', 'Skin_Nerves', 'UMesh_PM3D_Sphere3D2_26'].every(n => L.getObjectByName(n).material.vertexColors === true && !L.getObjectByName(n).material.userData.dentalVertexColorsDisabled));
 check('legacy: compare clone is the single tooth mesh', (() => { const c = A.buildToothDisplayClone(legacyTooth); let k = 0; c.traverse(o => { if (o.isMesh) k++; }); return k === 1; })());
 
 const pass = results.filter(r => r[1]).length;

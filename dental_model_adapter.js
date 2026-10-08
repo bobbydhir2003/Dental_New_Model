@@ -28,6 +28,7 @@ const LEGACY = {
 	fit: null,
 	aliases: {},
 	placeholders: [],
+	disableVertexColors: [], // legacy nerves/vessels rely on their vertex colours
 	repivotTeeth: false,
 	highlightSkipTissues: [],
 	pickSkipTissues: [],
@@ -41,6 +42,7 @@ const LEGACY = {
 	},
 	features: { devLobes: true },
 	renderer: null,          // keep the renderer defaults the app always used
+	lighting: null,          // keep the app's light rig exactly as authored
 	highlightTint: null,     // emissive glow alone reads well on legacy's grey teeth
 };
 
@@ -69,6 +71,11 @@ const V3 = {
 	// Legacy objects the v3 asset does not contain. Empty, invisible groups so
 	// existing getObjectByName(...).visible lookups never crash.
 	placeholders: [ 'Arteries', 'Veins' ],
+	// The upper gum (gum + palate) ships a pure black/white vertex-colour mask
+	// (COLOR_0) that three.js multiplies into the gum colour, drawing solid
+	// black bands around the sockets/gum margin. Ignore it (asset untouched).
+	// Uses the legacy alias name (aliases are applied first).
+	disableVertexColors: [ 'UMesh_PM3D_Sphere3D2_26' ],
 	repivotTeeth: true,
 	highlightSkipTissues: [ 'pulp' ],
 	pickSkipTissues: [ 'pulp' ], // pulp sits inside dentin; never the first hit
@@ -87,6 +94,12 @@ const V3 = {
 	// filmic tone mapping restores detail without touching any material value.
 	// Exposure 0.8 picked by side-by-side comparison of 1.0 / 0.8 / 0.65.
 	renderer: { toneMapping: 'ACESFilmic', exposure: 0.8 },
+	// v3's near-white bone/enamel reflect the app's non-directional fill light
+	// (HDR environment + ambient + hemisphere) so strongly that the model looked
+	// washed out and flat (measured mean luminance 192 vs legacy 133). Less fill
+	// and a slightly stronger key light restore shading/depth: measured 149
+	// mean luminance, contrast close to legacy. Values chosen by comparison.
+	lighting: { ambient: 0.15, hemisphere: 0.35, directional: 1.5, envMapIntensity: 0.3 },
 	// Near-white enamel cannot show an additive emissive glow, so the selected
 	// tooth's base colour is also tinted teal (restored on deselect).
 	highlightTint: 0x37c4d4,
@@ -225,6 +238,18 @@ export function applyRendererSettings( renderer, config ) {
 	if ( typeof r.exposure === 'number' ) renderer.toneMappingExposure = r.exposure;
 }
 
+// Applies per-model light intensities to a scene's existing lights (main view
+// and compare viewers). No-op for models without a `lighting` config.
+export function applySceneLighting( scene, config ) {
+	const l = config && config.lighting;
+	if ( ! scene || ! l ) return;
+	scene.traverse( function ( o ) {
+		if ( o.isAmbientLight ) o.intensity = l.ambient;
+		else if ( o.isHemisphereLight ) o.intensity = l.hemisphere;
+		else if ( o.isDirectionalLight ) o.intensity = l.directional;
+	} );
+}
+
 export function isFeatureEnabled( name ) {
 	return ! activeConfig || activeConfig.features[ name ] !== false;
 }
@@ -314,6 +339,31 @@ export function normalizeModel( root, config ) {
 		}
 	} );
 
+	// 1b. Ignore unwanted vertex colours on the configured objects only. A
+	// material that is also used outside the object is cloned first so no
+	// other mesh changes appearance.
+	( config.disableVertexColors || [] ).forEach( function ( name ) {
+		const target = root.getObjectByName( name );
+		if ( ! target ) { console.warn( '[dental-model] disableVertexColors target missing:', name ); return; }
+		const inside = new Set(), usedOutside = new Set();
+		target.traverse( function ( o ) { inside.add( o ); } );
+		root.traverse( function ( o ) {
+			if ( ! inside.has( o ) && o.material ) ( Array.isArray( o.material ) ? o.material : [ o.material ] ).forEach( function ( m ) { usedOutside.add( m ); } );
+		} );
+		target.traverse( function ( o ) {
+			if ( ! o.isMesh || ! o.material ) return;
+			const fix = function ( m ) {
+				if ( ! m || ! m.vertexColors ) return m;
+				const own = usedOutside.has( m ) ? m.clone() : m;
+				own.vertexColors = false;
+				own.needsUpdate = true;
+				own.userData.dentalVertexColorsDisabled = true;
+				return own;
+			};
+			o.material = Array.isArray( o.material ) ? o.material.map( fix ) : fix( o.material );
+		} );
+	} );
+
 	// 2. Empty placeholders for objects this asset lacks.
 	config.placeholders.forEach( function ( name ) {
 		if ( root.getObjectByName( name ) ) return;
@@ -362,6 +412,14 @@ export function normalizeModel( root, config ) {
 			( Array.isArray( m.material ) ? m.material : [ m.material ] ).forEach( rememberBaseLook );
 		} );
 	} );
+
+	// Per-model environment (IBL) strength; compare clones inherit it.
+	if ( config.lighting && typeof config.lighting.envMapIntensity === 'number' ) {
+		root.traverse( function ( o ) {
+			if ( o.material ) ( Array.isArray( o.material ) ? o.material : [ o.material ] )
+				.forEach( function ( m ) { if ( 'envMapIntensity' in m ) m.envMapIntensity = config.lighting.envMapIntensity; } );
+		} );
+	}
 
 	// 4. Root transform.
 	if ( config.fit ) fitRoot( root, config.fit );

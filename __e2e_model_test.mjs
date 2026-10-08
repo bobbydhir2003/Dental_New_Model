@@ -215,6 +215,60 @@ const selBefore = await sel(); await page.mouse.click(hiddenPt.x, hiddenPt.y); a
 check('hidden teeth are not clickable', (await sel()) === selBefore, { selBefore, now: await sel() });
 await clickToggle('teethCheckbox');
 
+// ---------------------------------------------------------------- GUM VERTEX COLOURS
+// v3 ships a black/white vertex-colour mask on the upper gum that rendered as
+// solid black socket/margin bands; the adapter disables it (v3 only).
+const vc = await ev(() => {
+  const c = window.__dental.carm, gum = c.getObjectByName('UMesh_PM3D_Sphere3D2_26'), mats = [];
+  gum.traverse(o => { if (o.isMesh) mats.push(o.material); });
+  let usedElsewhere = 0; c.traverse(o => { if (o.material && mats.includes(o.material)) { let n = o, inGum = false; while (n) { if (n === gum) inGum = true; n = n.parent; } if (!inGum) usedElsewhere++; } });
+  const legacyVC = ['Arteries', 'Veins', 'Skin_Nerves'].map(n => { const o = c.getObjectByName(n); return o && o.material ? o.material.vertexColors : null; });
+  return { gumVC: mats.map(m => m.vertexColors), usedElsewhere, legacyVC };
+});
+if (MODEL === 'legacy') check('vertex colours: legacy nerves/vessels keep vertexColors', vc.legacyVC.every(v => v === true), vc);
+else check('vertex colours: v3 upper gum/palate vertexColors disabled, materials not shared', vc.gumVC.length === 2 && vc.gumVC.every(v => v === false) && vc.usedElsewhere === 0, vc);
+// Pixel check on a close-up of the upper anterior gum. Gum pixels are split into
+// "mask" faces (all three vertices black in the asset's COLOR_0) and the rest.
+// The defect = mask faces rendering pure black; natural crevice shading inside
+// empty sockets is allowed (mask faces are socket/margin surfaces, so a little
+// darker than the open gum).
+await ev(() => { window.__t.gumPixelStats = (forceVC) => {
+  const d = window.__dental, T = d.THREE, gum = d.carm.getObjectByName('UMesh_PM3D_Sphere3D2_26'), mats = [];
+  gum.traverse(o => { if (o.isMesh) mats.push(o.material); });
+  const saved = mats.map(m => m.vertexColors); if (forceVC) mats.forEach(m => { m.vertexColors = true; m.needsUpdate = true; });
+  const c = d.getToothCenter(window.__t.tooth(6)).clone().add(new T.Vector3(10, 15, 0));
+  d.controls.target.copy(c); d.camera.position.copy(c).add(new T.Vector3(120, -60, 150)); d.camera.lookAt(c); d.camera.updateMatrixWorld();
+  const gl = d.renderer.getContext(); d.renderer.render(d.carm.parent, d.camera);
+  const W = gl.drawingBufferWidth, H = gl.drawingBufferHeight, px = new Uint8Array(4), ray = new T.Raycaster(), acc = { mask: [], other: [] };
+  for (let i = 1; i < 120; i++) for (let j = 1; j < 80; j++) {
+    const x = i / 120, y = j / 80; ray.setFromCamera(new T.Vector2(x * 2 - 1, -(y * 2 - 1)), d.camera);
+    const hit = ray.intersectObject(d.carm, true).find(h => { let o = h.object; while (o) { if (!o.visible) return false; o = o.parent; } return true; });
+    if (!hit) continue; let on = false; { let o = hit.object; while (o) { if (o === gum) on = true; o = o.parent; } } if (!on) continue;
+    gl.readPixels(Math.floor(x * W), Math.floor((1 - y) * H), 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
+    const col = hit.object.geometry.attributes.color, f = hit.face;
+    const mask = !!col && [f.a, f.b, f.c].every(k => col.getX(k) + col.getY(k) + col.getZ(k) < 0.3);
+    (mask ? acc.mask : acc.other).push(0.2126 * px[0] + 0.7152 * px[1] + 0.0722 * px[2]);
+  }
+  mats.forEach((m, k) => { m.vertexColors = saved[k]; m.needsUpdate = true; });
+  const mean = a => a.length ? a.reduce((s, v) => s + v, 0) / a.length : 0, black = a => a.filter(v => v < 8).length;
+  return { gumPx: acc.mask.length + acc.other.length, maskPx: acc.mask.length, maskPureBlack: black(acc.mask), otherPureBlack: black(acc.other),
+    ratio: acc.mask.length ? +(mean(acc.mask) / mean(acc.other)).toFixed(2) : null };
+}; });
+for (const teeth of ['visible', 'hidden']) {
+  if (teeth === 'hidden') await clickToggle('teethCheckbox');
+  const now = await ev(() => window.__t.gumPixelStats(false));
+  if (MODEL === 'legacy') {
+    check(`gum close-up (teeth ${teeth}): legacy gum has no black band (<1% pure-black gum pixels)`, now.gumPx > 200 && now.otherPureBlack / now.gumPx < 0.01, now);
+  } else {
+    check(`gum close-up (teeth ${teeth}): former black-mask areas render as gum (0 pure-black px, brightness ratio >= 0.4)`, now.maskPx > 20 && now.maskPureBlack === 0 && now.ratio >= 0.4 && now.otherPureBlack / now.gumPx < 0.01, now);
+    const vcOn = await ev(() => window.__t.gumPixelStats(true));
+    check(`gum close-up (teeth ${teeth}): check is sensitive (mask re-enabled -> black band, ratio < 0.2)`, vcOn.maskPureBlack > 10 && vcOn.ratio < 0.2, vcOn);
+  }
+  await page.screenshot({ path: `${SHOTS}${ARG}-gum-closeup-teeth-${teeth}.png` });
+  if (teeth === 'hidden') await clickToggle('teethCheckbox');
+}
+await ev(() => { const d = window.__dental; d.camera.position.set(0, 0, 800); d.controls.target.set(0, 0, 0); d.controls.update(); });
+
 // ---------------------------------------------------------------- JAW
 const J0 = { u: await ev(() => window.__t.jaw('upperJawGrp')), l: await ev(() => window.__t.jaw('lowerJawGrp')) };
 const same = (a, b, eps = 1e-9) => a.every((v, i) => Math.abs(v - b[i]) < eps);
